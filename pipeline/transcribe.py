@@ -64,3 +64,32 @@ def _find_speaker_at(time_sec: float, diarization: list) -> str:
             spk = seg.get("speaker", "")
             return "agent" if ("00" in spk or spk.endswith("_0")) else "client"
     return "client"  # défaut
+
+import numpy as np
+import librosa
+
+def compute_waveform(audio_path: str, n: int = 40) -> list:
+    """
+    Calcule 40 valeurs d'amplitude RMS pour dessiner
+    la mini-waveform dans la liste des appels.
+    Retourne une liste d'entiers entre 2 et 40.
+    """
+    try:
+        y, sr = librosa.load(audio_path, sr=None, mono=True)
+        frame  = max(1, len(y) // n)
+        result = []
+
+        for i in range(n):
+            chunk = y[i * frame : min((i + 1) * frame, len(y))]
+            if len(chunk) == 0:
+                result.append(2)
+            else:
+                rms   = float(np.sqrt(np.mean(chunk ** 2)))
+                value = int(rms * 400)
+                result.append(max(2, min(40, value)))
+
+        return result
+
+    except Exception as e:
+        print(f"[waveform] erreur : {e}")
+        return [5] * n   # valeurs par défaut si erreur

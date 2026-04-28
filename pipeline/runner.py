@@ -1,26 +1,35 @@
 from pipeline.transcribe import transcribe_audio, align_transcript
 from pipeline.diarize import diarize_audio
 import json
+from pipeline.transcribe import transcribe_audio, align_transcript, compute_waveform
+from pipeline.diarize    import diarize_audio
+import json
 
 def run_pipeline(call_id, audio_path, execute, fetchone):
 
-    # =========================
-    # 1. TRANSCRIPTION (WHISPER)
-    # =========================
-    result = transcribe_audio(audio_path)
-    text = result["text"]
-
-    # durée réelle si dispo sinon fallback
+    # ================================================================
+    # ÉTAPE 1 : TRANSCRIPTION (WHISPER)
+    # ================================================================
+    result   = transcribe_audio(audio_path)
+    text     = result["text"]
+    segments = result.get("segments", [])
     duration = result.get("duration", 300)
+    language = result.get("language", "fr")
+
+    # Calculer la waveform miniature (40 valeurs pour le graphique)
+    waveform = compute_waveform(audio_path)
 
     execute("""
         UPDATE calls
         SET transcription_text = %s,
-            status = %s
+            duration_seconds   = %s,
+            language           = %s,
+            waveform_data      = %s,
+            status             = 'transcribed'
         WHERE id = %s
-    """, (text, "transcribed", call_id))
+    """, (text, int(duration), language, json.dumps(waveform), call_id))
 
-    print("✅ Transcribed")
+    print(f"✅ Transcribed — durée={int(duration)}s  waveform={len(waveform)} valeurs")
 
     # =========================
     # 2. DIARISATION (PYANNOTE)
