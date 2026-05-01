@@ -64,8 +64,13 @@ def run_pipeline(call_id, audio_path, execute, fetchone):
     # =========================
     # 2.5 ALIGNEMENT
     # =========================
-    segments = result.get("segments", [])
+    from pipeline.transcribe import align_transcript, fix_alignment_with_gemini
+
+    segments     = result.get("segments", [])
     aligned_text = align_transcript(segments, diar["diarization"])
+
+    # Correction par Gemini des attributions incorrectes
+    aligned_text = fix_alignment_with_gemini(aligned_text)
 
     execute("""
         UPDATE calls
@@ -75,9 +80,8 @@ def run_pipeline(call_id, audio_path, execute, fetchone):
 
     print("✅ Aligned")
     print("--- Aperçu ---")
-    print(aligned_text[:400])
+    print(aligned_text[:500])
     print("--------------")
-
     # =========================
     # 3. NEXT STEPS (à venir)
     # =========================

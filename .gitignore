@@ -1,3 +1,16 @@
+# Environnement
 venv/
+
+# Python
 __pycache__/
 *.pyc
+
+# Secrets (TRÈS IMPORTANT)
+.env
+
+# Audio files (TRÈS IMPORTANT)
+uploads/
+*.wav
+
+# OS / divers
+.DS_Store
