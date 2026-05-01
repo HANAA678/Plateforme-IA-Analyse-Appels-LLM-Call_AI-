@@ -1,3 +1,23 @@
+# environment
 venv/
+.env
+
+# python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# uploads (audio runtime files)
+uploads/
+
+# logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# system files
+.DS_Store
+Thumbs.db
