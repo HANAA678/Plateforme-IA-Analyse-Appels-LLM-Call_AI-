@@ -1,85 +1,91 @@
-from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks
-from datetime import datetime
-import uuid
 import os
+import uuid
+import shutil
+from datetime import datetime
 
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi.responses import JSONResponse
+
+from core.database import execute, fetchone, fetchall
 from pipeline.runner import run_pipeline
-from core.database import fetchone, execute
 
 router = APIRouter()
 
-
-def process_call(call_id: str):
-
-    call = fetchone("SELECT * FROM calls WHERE id=%s", (call_id,))
-
-    if not call:
-        return
-
-    # SUPPRIMÉ : status "processing" n'existe pas
-
-    audio_path = os.path.join(
-        "uploads",
-        os.path.basename(call["audio_url"])
-    )
-
-    # récupérer le texte correctement
-    text = run_pipeline(call_id, audio_path, execute, fetchone)
-
-    print("TEXT:", text)
+UPLOAD_DIR = "/tmp/audio"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @router.post("/api/upload")
-async def upload_audio(
-    file: UploadFile = File(...),
-    agent_id: str = Form(...),
-    called_at: str = Form(...),
-    call_type: str = Form(...),
-    priority: str = Form(...),
-    supervisor_notes: str = Form(None),
-    focus_points: str = Form(None),
-    background_tasks: BackgroundTasks = None
+async def upload_call(
+    file:             UploadFile = File(...),
+    agent_id:         str        = Form(...),
+    called_at:        str        = Form(...),           # "2026-04-20T14:32:00"
+    call_type:        str        = Form("information"), # reclamation/commercial/technique/information
+    priority:         str        = Form("normale"),     # normale/haute/urgente
+    supervisor_notes: str        = Form(""),
+    focus_points:     str        = Form(""),
 ):
+    # ── 1. Valider le fichier ──────────────────────────────────────
+    if not file.filename.endswith(".wav"):
+        raise HTTPException(status_code=400, detail="Seuls les fichiers .wav sont acceptés.")
 
-    content = await file.read()
+    # ── 2. Valider l'agent ────────────────────────────────────────
+    agent = fetchone("SELECT id FROM agents WHERE id = %s", (agent_id,))
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} introuvable.")
 
-    os.makedirs("uploads", exist_ok=True)
+    # ── 3. Sauvegarder le fichier localement ──────────────────────
+    call_id   = str(uuid.uuid4())
+    filename  = f"{call_id}.wav"
+    audio_path = os.path.join(UPLOAD_DIR, filename)
 
-    filename = f"{uuid.uuid4()}.wav"
-    filepath = os.path.join("uploads", filename)
+    with open(audio_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
 
-    with open(filepath, "wb") as f:
-        f.write(content)
+    # ── 4. Parser called_at ───────────────────────────────────────
+    try:
+        called_at_dt = datetime.fromisoformat(called_at)
+    except ValueError:
+        called_at_dt = datetime.now()
 
-    audio_url = f"/uploads/{filename}"
-    called_at_dt = datetime.fromisoformat(called_at)
+    # ── 5. Créer la ligne dans calls (status = pending) ───────────
+    audio_url = f"/tmp/audio/{filename}"   # on remplacera par S3 plus tard
 
-    result = fetchone("""
+    execute("""
         INSERT INTO calls (
-            agent_id, audio_url, called_at, status,
-            call_type, priority, supervisor_notes, focus_points
+            id, agent_id, audio_url, called_at,
+            call_type, priority,
+            supervisor_notes, focus_points,
+            status, created_at
         )
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-        RETURNING id
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'pending', NOW())
     """, (
-        agent_id,
-        audio_url,
-        called_at_dt,
-        "pending",
-        call_type,
-        priority,
-        supervisor_notes,
-        focus_points
+        call_id, agent_id, audio_url, called_at_dt,
+        call_type, priority,
+        supervisor_notes or None,
+        focus_points     or None,
     ))
 
-    call_id = result["id"]
+    print(f"[upload] Appel {call_id} créé — lancement pipeline...")
 
-    if background_tasks:
-        background_tasks.add_task(process_call, str(call_id))
+    # ── 6. Lancer le pipeline directement (synchrone) ─────────────
+    #     Pour passer à Celery plus tard : remplacer par process_call.delay(call_id, audio_path)
+    try:
+        run_pipeline(
+            call_id    = call_id,
+            audio_path = audio_path,
+            execute    = execute,
+            fetchone   = fetchone,
+            fetchall   = fetchall,
+        )
+    except Exception as e:
+        execute("UPDATE calls SET status = 'failed' WHERE id = %s", (call_id,))
+        print(f"[upload] ❌ Pipeline échoué : {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur pipeline : {str(e)}")
 
-    return {
-        "message": "upload successful",
-        "call_id": str(call_id),
-        "audio_url": audio_url,
-        "status": "pending"
-    }
+    # ── 7. Retourner la réponse ───────────────────────────────────
+    return JSONResponse(status_code=200, content={
+        "call_id": call_id,
+        "status":  "evaluated",
+        "message": "Pipeline terminé avec succès.",
+    })
