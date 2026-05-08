@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Upload audio{% endblock %}
+
+{% block content %}
+
+<!-- ── TOPBAR ───────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="ptitle">Nouvel appel à analyser</div>
+  <span class="badge-c bb">Post-appel</span>
+</div>
+
+<!-- ── ZONE DRAG & DROP ─────────────────────────────────────── -->
+<div class="card-c">
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".wav,.mp3,.m4a" style="display:none">
+    <div class="drop-icon">⬆</div>
+    <div class="drop-title" id="dropTitle">Glisse le fichier ici ou clique pour choisir</div>
+    <div class="drop-hint">WAV · MP3 · M4A — max 100 MB</div>
+  </div>
+
+  <!-- Barre de progression (cachée par défaut) -->
+  <div id="progressBlock" style="display:none; margin-top:10px;">
+    <div style="display:flex; justify-content:space-between; font-size:11px; color:#888; margin-bottom:4px;">
+      <span id="progressLabel">Traitement en cours…</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="pipeline-bar">
+      <div class="pipeline-fill" id="progressFill" style="width:0%"></div>
+    </div>
+    <div style="font-size:10px; color:#888; margin-top:4px;" id="progressStep"></div>
+  </div>
+</div>
+
+<!-- ── FORMULAIRE (deux colonnes) ───────────────────────────── -->
+<div class="two">
+
+  <!-- Colonne gauche : infos appel -->
+  <div class="card-c">
+    <div class="ctitle">Informations de l'appel</div>
+
+    <div style="margin-bottom:7px">
+      <div style="font-size:11px;color:#888;margin-bottom:3px">
+        Agent <code>calls.agent_id</code>
+      </div>
+      <select id="agentSelect">
+        <option value="">Chargement…</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:7px">
+      <div style="font-size:11px;color:#888;margin-bottom:3px">
+        Date et heure <code>calls.called_at</code>
+      </div>
+      <input type="datetime-local" id="calledAt">
+    </div>
+
+    <div style="margin-bottom:7px">
+      <div style="font-size:11px;color:#888;margin-bottom:3px">
+        Type d'appel <code>calls.call_type</code>
+      </div>
+      <select id="callType">
+        <option value="reclamation">Réclamation</option>
+        <option value="commercial">Commercial</option>
+        <option value="technique">Technique</option>
+        <option value="information">Information</option>
+      </select>
+    </div>
+
+    <div>
+      <div style="font-size:11px;color:#888;margin-bottom:3px">
+        Priorité <code>calls.priority</code>
+      </div>
+      <select id="priority">
+        <option value="urgente">Urgente</option>
+        <option value="haute">Haute</option>
+        <option value="normale" selected>Normale</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Colonne droite : contexte superviseur -->
+  <div class="card-c">
+    <div class="ctitle">Contexte superviseur <span style="font-weight:400;text-transform:none;color:#888;font-size:10px">(aide le LLM)</span></div>
+
+    <div style="margin-bottom:7px">
+      <div style="font-size:11px;color:#888;margin-bottom:3px">
+        Contexte de l'appel <code>calls.supervisor_notes</code>
+      </div>
+      <textarea id="supervisorNotes" rows="3"
+        placeholder="Ex : Client VIP qui a appelé 3 fois ce mois pour le même problème de facturation. Appel escaladé depuis le niveau 1."></textarea>
+    </div>
+
+    <div>
+      <div style="font-size:11px;color:#888;margin-bottom:3px">
+        Points spécifiques à vérifier <code>calls.focus_points</code>
+      </div>
+      <textarea id="focusPoints" rows="3"
+        placeholder="Ex : Vérifier si l'agent a proposé le remboursement exceptionnel. S'assurer que les mentions RGPD ont été faites."></textarea>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── GRILLE DES CRITÈRES ───────────────────────────────────── -->
+<div class="card-c">
+  <div class="ctitle">
+    Grille appliquée — Aperçu <code>criteria_config</code>
+  </div>
+  <div style="font-size:11px;color:#888;margin-bottom:8px">
+    Le LLM évalue l'appel selon ces critères. Chaque critère sera noté et justifié automatiquement.
+  </div>
+
+  <!-- Skeleton loader -->
+  <div id="criteriaLoading" class="two">
+    <div>
+      <div class="criteria-card" style="opacity:.4">
+        <div class="crit-name">Chargement…</div>
+        <div class="crit-desc">…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Critères réels injectés par JS -->
+  <div class="two" id="criteriaGrid" style="display:none"></div>
+
+  <!-- Récap total + bouton -->
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; flex-wrap:wrap; gap:8px;">
+    <div id="criteriaTotal"
+         style="background:#f5f4f1;border-radius:8px;padding:8px 10px;font-size:11px;color:#888;display:none">
+      <strong>Total : 100 pts</strong><br>
+      Score ≥ 80 → Conforme &nbsp;·&nbsp; 60–79 → Partiel &nbsp;·&nbsp; &lt; 60 → Non-conforme
+    </div>
+    <button class="btn-c btn-primary" id="btnAnalyse"
+            style="padding:8px 20px; margin-left:auto"
+            onclick="submitUpload()">
+      Lancer l'analyse →
+    </button>
+  </div>
+</div>
+
+<!-- ── MESSAGE SUCCÈS (caché par défaut) ────────────────────── -->
+<div id="successBlock" style="display:none" class="card-c">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <span style="font-size:22px">✅</span>
+    <div>
+      <div style="font-weight:600; font-size:13px; margin-bottom:2px">Analyse terminée avec succès</div>
+      <div style="font-size:11px; color:#888">
+        L'appel a été évalué.
+        <a id="linkRapport" href="#" style="color:#0C447C; font-weight:600">Voir le rapport →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/upload.js"></script>
+{% endblock %}

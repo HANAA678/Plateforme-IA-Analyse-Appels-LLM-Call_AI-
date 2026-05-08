@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- ── TOPBAR ───────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="ptitle">Dashboard</div>
+  <select id="periodSelect" style="width:auto;font-size:11px" onchange="loadDashboard()">
+    <option value="week">Cette semaine</option>
+    <option value="month" selected>Ce mois</option>
+    <option value="today">Aujourd'hui</option>
+  </select>
+</div>
+
+<!-- ── KPIs ─────────────────────────────────────────────────── -->
+<div class="metrics">
+  <div class="metric">
+    <div class="mlabel">Appels analysés <code>calls</code></div>
+    <div class="mval" id="kpiCalls">—</div>
+    <div class="msub" id="kpiCallsSub"></div>
+  </div>
+  <div class="metric">
+    <div class="mlabel">Score moyen <code>evaluations</code></div>
+    <div class="mval" id="kpiScore" style="color:#0C447C">—</div>
+    <div class="msub" id="kpiScoreSub"></div>
+  </div>
+  <div class="metric">
+    <div class="mlabel">Taux conformité</div>
+    <div class="mval" id="kpiCompliance" style="color:#27500A">—</div>
+    <div class="msub" id="kpiComplianceSub"></div>
+  </div>
+  <div class="metric">
+    <div class="mlabel">Alertes critiques <code>alerts</code></div>
+    <div class="mval" id="kpiAlerts" style="color:#791F1F">—</div>
+    <div class="msub" id="kpiAlertsSub"></div>
+  </div>
+</div>
+
+<!-- ── LIGNE 2 : scores équipes + répartition conformité ────── -->
+<div class="two">
+
+  <div class="card-c">
+    <div class="ctitle">Score moyen par équipe <code>teams + evaluations</code></div>
+    <div id="teamsRows">
+      <div class="row-c" style="color:#888;font-size:11px">Chargement…</div>
+    </div>
+  </div>
+
+  <div class="card-c">
+    <div class="ctitle">Répartition scores <code>evaluations.score_total</code></div>
+    <div id="complianceRows">
+      <div class="row-c" style="color:#888;font-size:11px">Chargement…</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── LIGNE 3 : appels par type ────────────────────────────── -->
+<div class="card-c">
+  <div class="ctitle">Appels par type <code>calls.call_type</code></div>
+  <div id="callTypeRows">
+    <div class="row-c" style="color:#888;font-size:11px">Chargement…</div>
+  </div>
+</div>
+
+<!-- ── LIGNE 4 : derniers appels ────────────────────────────── -->
+<div class="card-c">
+  <div class="ctitle">Derniers appels <code>calls + evaluations + agents</code></div>
+  <div id="recentCallsRows">
+    <div class="row-c" style="color:#888;font-size:11px">Chargement…</div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CallAI v2 — {% block title %}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="shell">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="logo">
+        <div class="logodot">C</div>CallAI
+      </div>
+      <nav class="nav-sidebar">
+        <div class="nlabel">Principal</div>
+        <a href="/upload"    class="ni {% if active == 'upload'    %}active{% endif %}">⬆ Upload audio</a>
+        <a href="/dashboard" class="ni {% if active == 'dashboard' %}active{% endif %}">▦ Dashboard</a>
+        <a href="/calls"     class="ni {% if active == 'calls'     %}active{% endif %}">☰ Appels</a>
+        <a href="/audio"     class="ni {% if active == 'audio'     %}active{% endif %}">〰 Analyse audio</a>
+        <div class="nlabel">Équipe</div>
+        <a href="/agents"    class="ni {% if active == 'agents'    %}active{% endif %}">👤 Agents</a>
+        <a href="/coaching"  class="ni {% if active == 'coaching'  %}active{% endif %}">✓ Coaching</a>
+        <a href="/alerts"    class="ni {% if active == 'alerts'    %}active{% endif %}">⚠ Alertes</a>
+      </nav>
+    </div>
+
+    <!-- CONTENU -->
+    <div class="content">
+      <div class="page-inner">
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // Fonction toast globale
+    function showToast(msg, type = 'default') {
+      const t = document.createElement('div');
+      t.className = 'toast-c';
+      t.style.background = type === 'error' ? '#791F1F' : type === 'success' ? '#1D9E75' : '#1a1a18';
+      t.textContent = msg;
+      document.getElementById('toastContainer').appendChild(t);
+      requestAnimationFrame(() => t.classList.add('show'));
+      setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
+    }
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
