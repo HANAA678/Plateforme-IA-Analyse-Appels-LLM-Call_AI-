@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Appels{% endblock %}
+
+{% block content %}
+
+<!-- ── TOPBAR ───────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="ptitle">Appels <code>calls_enriched</code></div>
+  <span class="badge-c bgr" id="totalBadge">—</span>
+</div>
+
+<!-- ── FILTRES ──────────────────────────────────────────────── -->
+<div class="filters">
+  <input  type="text"   id="fSearch"   placeholder="Rechercher agent, mot-clé…"
+          style="flex:2;min-width:140px" oninput="debounceLoad()">
+
+  <select id="fPeriod"  onchange="loadCalls()">
+    <option value="month" selected>Ce mois</option>
+    <option value="week">Cette semaine</option>
+    <option value="today">Aujourd'hui</option>
+  </select>
+
+  <select id="fScore"   onchange="loadCalls()">
+    <option value="">Tous scores</option>
+    <option value="high">Score ≥ 70</option>
+    <option value="medium">Score 40–69</option>
+    <option value="low">Score &lt; 40</option>
+  </select>
+
+  <select id="fType"    onchange="loadCalls()">
+    <option value="">Tous types</option>
+    <option value="reclamation">Réclamation</option>
+    <option value="commercial">Commercial</option>
+    <option value="technique">Technique</option>
+    <option value="information">Information</option>
+  </select>
+
+  <select id="fPriority" onchange="loadCalls()">
+    <option value="">Toutes priorités</option>
+    <option value="urgente">Urgente</option>
+    <option value="haute">Haute</option>
+    <option value="normale">Normale</option>
+  </select>
+</div>
+
+<!-- ── TABLEAU ──────────────────────────────────────────────── -->
+<div class="card-c" style="padding:0 13px">
+  <table class="calls-table">
+    <thead>
+      <tr>
+        <th style="width:110px">Agent</th>
+        <th style="width:80px">Date</th>
+        <th style="width:55px">Durée</th>
+        <th style="width:48px">Score</th>
+        <th style="width:80px">Type</th>
+        <th style="width:70px">Sentiment</th>
+        <th style="width:55px">Priorité</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="callsBody">
+      <tr>
+        <td colspan="8" style="text-align:center;padding:18px;color:#888;font-size:11px">
+          Chargement…
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── PAGINATION ───────────────────────────────────────────── -->
+<div id="pagination"
+     style="display:flex;align-items:center;justify-content:space-between;
+            margin-top:10px;font-size:11px;color:#888">
+  <span id="pageInfo"></span>
+  <div style="display:flex;gap:6px">
+    <button class="btn-c btn-sm" id="btnPrev" onclick="changePage(-1)" disabled>← Préc.</button>
+    <button class="btn-c btn-sm" id="btnNext" onclick="changePage(+1)" disabled>Suiv. →</button>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/calls.js"></script>
+{% endblock %}

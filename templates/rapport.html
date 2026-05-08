@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Rapport{% endblock %}
+
+{% block content %}
+
+<!-- ── TOPBAR ───────────────────────────────────────────────── -->
+<div class="topbar" id="rapportTopbar">
+  <div style="display:flex;align-items:center;gap:10px">
+    <a href="/calls" style="font-size:11px;color:#888;text-decoration:none">← Appels</a>
+    <div class="ptitle" id="rapportTitle">Rapport</div>
+  </div>
+  <div style="display:flex;gap:5px;flex-wrap:wrap" id="rapportBadges"></div>
+</div>
+
+<!-- Sous-titre meta ─────────────────────────────────────────── -->
+<div style="font-size:11px;color:#888;margin-bottom:10px" id="rapportMeta">
+  Chargement…
+</div>
+
+<!-- ── LIGNE 1 : critères LLM + métriques audio ─────────────── -->
+<div class="two">
+
+  <div class="card-c">
+    <div class="ctitle">Critères LLM <code>evaluations.criteria + criteria_config</code></div>
+    <div id="criteriaRows">
+      <div style="font-size:11px;color:#888">Chargement…</div>
+    </div>
+  </div>
+
+  <div class="card-c">
+    <div class="ctitle">Métriques audio <code>audio_metrics</code></div>
+    <div id="audioRows">
+      <div style="font-size:11px;color:#888">Chargement…</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── LIGNE 2 : réponse superviseur ────────────────────────── -->
+<div class="card-c" id="supervisorBlock" style="display:none">
+  <div class="ctitle">
+    Réponse aux points du superviseur
+    <code>evaluations.supervisor_feedback</code>
+  </div>
+  <div class="rblk" style="background:#E6F1FB">
+    <div class="rbt" style="color:#0C447C">
+      Question superviseur <code>calls.focus_points</code>
+    </div>
+    <div id="focusPointsText"></div>
+  </div>
+  <div class="rblk">
+    <div class="rbt">Réponse LLM</div>
+    <div id="supervisorFeedbackText"></div>
+  </div>
+</div>
+
+<!-- ── LIGNE 3 : résumé IA ───────────────────────────────────── -->
+<div class="card-c">
+  <div class="ctitle">
+    Résumé IA
+    <code>evaluations.summary / strengths / weaknesses / next_action</code>
+  </div>
+  <div id="summaryBlocks">
+    <div style="font-size:11px;color:#888">Chargement…</div>
+  </div>
+</div>
+
+<!-- ── LIGNE 4 : timeline ───────────────────────────────────── -->
+<div class="card-c">
+  <div class="ctitle">Timeline <code>evaluations.timeline (JSONB)</code></div>
+  <div id="timelineRows">
+    <div style="font-size:11px;color:#888">Chargement…</div>
+  </div>
+</div>
+
+<!-- ── LIGNE 5 : mots-clés ──────────────────────────────────── -->
+<div class="card-c">
+  <div class="ctitle">Mots-clés <code>evaluations.keywords (JSONB)</code></div>
+  <div id="keywordsBlock" style="display:flex;flex-wrap:wrap;gap:5px">
+    <div style="font-size:11px;color:#888">Chargement…</div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/rapport.js"></script>
+{% endblock %}

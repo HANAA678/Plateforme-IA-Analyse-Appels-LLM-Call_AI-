@@ -46,7 +46,13 @@ def page_calls(request: Request):
     )
 # … etc pour les autres pages
 
-
+@app.get("/rapport")
+def page_rapport(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="rapport.html",
+        context={"active": "rapport"}
+    )
 
 
 
