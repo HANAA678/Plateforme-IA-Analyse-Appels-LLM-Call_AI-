@@ -5,6 +5,7 @@ from pipeline.transcribe import (
 )
 from pipeline.diarize import diarize_audio
 from pipeline.evaluate import evaluate_transcription
+from pipeline.alerts import generate_alerts
 
 import json
 
@@ -34,7 +35,8 @@ def run_pipeline(call_id, audio_path, execute, fetchone, fetchall):
     """, (text, int(duration), language, json.dumps(waveform), call_id))
 
     print(f"✅ Transcribed — durée={int(duration)}s")
-
+    print("CALL ID =", call_id)
+    print("AUDIO PATH =", audio_path)
     # ================================================================
     # 2. DIARISATION
     # ================================================================
@@ -188,6 +190,15 @@ def run_pipeline(call_id, audio_path, execute, fetchone, fetchall):
 
     print(f"✅ Evaluated — score={evaluation['score_total']}, compliance={evaluation['compliance']}")
 
+
+# ================================================================
+# alerts
+# ================================================================
+
+
+    call_row_agent = fetchone("SELECT agent_id FROM calls WHERE id = %s", (call_id,))
+    agent_id = (call_row_agent or {}).get("agent_id", "")
+    generate_alerts(call_id=call_id, agent_id=agent_id, evaluation=evaluation, diar=diar)
     # ================================================================
     # 5. REFRESH STATS AGENT
     # ================================================================
@@ -195,6 +206,7 @@ def run_pipeline(call_id, audio_path, execute, fetchone, fetchall):
 
     print("✅ Pipeline terminé")
     return aligned_text
+
 
 
 # ================================================================
@@ -223,3 +235,7 @@ def _refresh_agent_stats(call_id, fetchone, execute):
             UPDATE agents SET avg_score = %s, total_calls = %s WHERE id = %s
         """, (stats["avg_score"] or 0, stats["total_calls"] or 0, agent_id))
         print(f"✅ Stats agent — avg={stats['avg_score']}, calls={stats['total_calls']}")
+
+
+
+

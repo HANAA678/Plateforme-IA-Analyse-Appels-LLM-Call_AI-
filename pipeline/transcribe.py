@@ -9,19 +9,23 @@ import requests
 # ================================================================
 # Charger le modèle UNE seule fois
 # ================================================================
-model = WhisperModel("base", device="cpu", compute_type="int8")
+import threading
 
+model = WhisperModel("base", device="cpu", compute_type="int8")
+_model_lock = threading.Lock()  # ← ajouter ça
 
 def transcribe_audio(file_path: str):
-    segments_gen, info = model.transcribe(file_path, beam_size=5)
-
-    segments = []
-    for seg in segments_gen:
-        segments.append({
-            "start": seg.start,
-            "end":   seg.end,
-            "text":  seg.text
-        })
+    with _model_lock:  # ← une seule transcription à la fois
+        segments_gen, info = model.transcribe(file_path, beam_size=5)
+        
+        segments = []
+        for seg in segments_gen:  # ← générateur consommé DANS le lock
+            segments.append({
+                "start": seg.start,
+                "end":   seg.end,
+                "text":  seg.text
+            })
+    # on sort du lock seulement après avoir tout consommé
 
     duration = segments[-1]["end"] if segments else 0
     text     = " ".join(s["text"].strip() for s in segments)
@@ -32,9 +36,6 @@ def transcribe_audio(file_path: str):
         "duration": round(duration, 2),
         "segments": segments
     }
-
-
-
 # ================================================================
 # Alignement Speaker → Agent/Client via Gemini
 # ================================================================
