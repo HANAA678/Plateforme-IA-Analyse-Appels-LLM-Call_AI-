@@ -61,16 +61,49 @@ def _build_prompt(transcription, criteria_config, supervisor_notes, focus_points
     if focus_points:
         context_section += f"\nPOINTS À VÉRIFIER : {focus_points}"
 
+    # ── CHANGEMENT 1 : règle supervisor_feedback explicite ────────
+    supervisor_feedback_rule = ""
+    if focus_points:
+        supervisor_feedback_rule = f"""
+═══════════════════════════════════════
+RÈGLE SUPERVISOR_FEEDBACK — OBLIGATOIRE
+═══════════════════════════════════════
+La question du superviseur est : "{focus_points}"
+
+Tu DOIS dans "supervisor_feedback" :
+1. Répondre OUI ou NON en premier
+2. Citer un moment précis de la transcription pour justifier
+3. Être concis et factuel
+
+Exemple attendu :
+  "Oui, le client montre de l'agacement à partir de 2:30 lorsqu'il dit
+   qu'il a déjà appelé 3 fois sans solution. Son ton devient plus sec."
+
+INTERDIT :
+  - Répondre sur les performances de l'agent
+  - Donner un feedback de coaching
+  - Ignorer la question et répondre autre chose
+"""
+    else:
+        supervisor_feedback_rule = ""
+
+    # ── CHANGEMENT 2 : supervisor_feedback dans le JSON ──────────
+    supervisor_feedback_example = (
+        f'<réponse directe OUI/NON à la question : "{focus_points}", avec citation de la transcription>'
+        if focus_points
+        else "<aucun focus_point fourni>"
+    )
+
     return f"""Tu es un évaluateur qualité expert pour centre d'appel.
 {context_section}
-
+{supervisor_feedback_rule}
 ═══════════════════════════════════════
 LECTURE OBLIGATOIRE DE LA TRANSCRIPTION
 ═══════════════════════════════════════
 - Tu DOIS analyser toute la transcription du début à la fin
 - Tu NE DOIS PAS te baser uniquement sur le début
 - Tu DOIS prendre en compte le début, le milieu ET la fin
-- Il est INTERDIT d’ignorer une partie de la conversation
+- Il est INTERDIT d'ignorer une partie de la conversation
 - Si un élément apparaît à la fin → il DOIT être pris en compte
 
 ═══════════════════════════════════════
@@ -93,7 +126,7 @@ RÈGLES DE NOTATION — STRICTES
 2. Chaque score DOIT être basé sur un exemple concret extrait de la transcription
    (début, milieu ou fin).
 
-3. Si aucun exemple précis n’existe → score faible ou 0
+3. Si aucun exemple précis n'existe → score faible ou 0
 
 4. Cohérence obligatoire :
    si justification contient "non observable", "non abordé", etc.
@@ -117,7 +150,7 @@ FORMAT DE RÉPONSE — JSON STRICT
   "strengths": "<1 phrase>",
   "weaknesses": "<1 phrase>",
   "next_action": "<action>",
-  "supervisor_feedback": "<réponse aux focus_points>",
+  "supervisor_feedback": "{supervisor_feedback_example}",
   "timeline": [
     {{"time_sec": 0, "time_label": "0:00", "event": "...", "type": "ok|warning|issue"}}
   ],
@@ -132,7 +165,6 @@ TRANSCRIPTION COMPLÈTE (À ANALYSER ENTIEREMENT)
 ═══════════════════════════════════════
 {transcription}
 """
-
 
 def _call_gemini(api_key: str, prompt: str) -> dict | None:
     url = f"{GEMINI_URL}?key={api_key}"

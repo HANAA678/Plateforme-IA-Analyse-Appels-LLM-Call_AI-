@@ -54,7 +54,30 @@ def page_rapport(request: Request):
         context={"active": "rapport"}
     )
 
-
+@app.get("/audio")
+def page_audio(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="audio.html",
+        context={"request": request, "active": "audio"}
+    )
+@app.get("/agents")
+def page_agents(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="agents.html",
+        context={
+            "request": request,
+            "active": "agents"
+        }
+    )
+@app.get("/alerts")
+def page_alerts(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="alerts.html",
+        context={"active": "alerts"}
+    )
 
 @app.get("/")
 def home():

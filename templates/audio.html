@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Analyse audio{% endblock %}
+
+{% block content %}
+
+<!-- ── TOPBAR ───────────────────────────────────────────────── -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:10px">
+    <a href="/calls" style="font-size:11px;color:#888;text-decoration:none">← Appels</a>
+    <div class="ptitle" id="audioTitle">Analyse audio</div>
+  </div>
+  <span class="badge-c bgr" id="audioMeta">WAV · <code>audio_metrics</code></span>
+</div>
+
+<!-- ── DIARISATION ───────────────────────────────────────────── -->
+<div class="card-c">
+  <div class="ctitle">
+    Diarisation — qui parle quand
+    <code>audio_metrics.diarization (JSONB)</code>
+  </div>
+
+  <!-- Barre segments -->
+  <div class="seg-row" id="diarSeg">
+    <div style="font-size:11px;color:#888;padding:2px 0">Chargement…</div>
+  </div>
+
+  <!-- Timestamps -->
+  <div style="display:flex;justify-content:space-between;
+              font-size:10px;color:#888;margin-bottom:6px"
+       id="diarTimes">
+    <span>0:00</span><span></span><span></span>
+  </div>
+
+  <!-- Légende -->
+  <div style="display:flex;gap:12px;font-size:10px" id="diarLegend">
+    <span style="color:#0C447C">■ Agent — %</span>
+    <span style="color:#1D9E75">■ Client — %</span>
+    <span style="color:#E24B4A">■ Silence — %</span>
+  </div>
+</div>
+
+<!-- ── LIGNE 2 : émotions agent + client ────────────────────── -->
+<div class="two">
+
+  <div class="card-c">
+    <div class="ctitle">
+      Émotions agent <code>audio_metrics.emotions_agent</code>
+    </div>
+    <div id="emotionsAgent">
+      <div style="font-size:11px;color:#888">Chargement…</div>
+    </div>
+  </div>
+
+  <div class="card-c">
+    <div class="ctitle">
+      Émotions client <code>audio_metrics.emotions_client</code>
+    </div>
+    <div id="emotionsClient">
+      <div style="font-size:11px;color:#888">Chargement…</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── LIGNE 3 : silences + rythme ──────────────────────────── -->
+<div class="two">
+
+  <div class="card-c">
+    <div class="ctitle">
+      Silences &amp; attentes <code>audio_metrics.silences</code>
+    </div>
+    <div id="silenceRows">
+      <div style="font-size:11px;color:#888">Chargement…</div>
+    </div>
+  </div>
+
+  <div class="card-c">
+    <div class="ctitle">
+      Rythme &amp; interruptions <code>audio_metrics</code>
+    </div>
+    <div id="rhythmRows">
+      <div style="font-size:11px;color:#888">Chargement…</div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/audio.js"></script>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Alertes{% endblock %}
+
+{% block content %}
+
+<!-- ── TOPBAR ───────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="ptitle">Alertes <code>alerts</code></div>
+  <div style="display:flex;gap:6px;align-items:center">
+    <select id="fSeverity" style="width:auto;font-size:11px" onchange="loadAlerts()">
+      <option value="">Toutes priorités</option>
+      <option value="critical">Critique</option>
+      <option value="medium">Moyenne</option>
+      <option value="info">Info</option>
+    </select>
+    <select id="fResolved" style="width:auto;font-size:11px" onchange="loadAlerts()">
+      <option value="false">Non traitées</option>
+      <option value="true">Traitées</option>
+      <option value="all">Toutes</option>
+    </select>
+  </div>
+</div>
+
+<!-- ── KPIs ─────────────────────────────────────────────────── -->
+<div class="metrics-3" style="margin-bottom:12px">
+  <div class="metric">
+    <div class="mlabel">Critiques <code>severity=critical</code></div>
+    <div class="mval" id="kpiCritical" style="color:#791F1F">—</div>
+    <div class="msub">Non traitées</div>
+  </div>
+  <div class="metric">
+    <div class="mlabel">Moyennes <code>severity=medium</code></div>
+    <div class="mval" id="kpiMedium" style="color:#633806">—</div>
+    <div class="msub">Non traitées</div>
+  </div>
+  <div class="metric">
+    <div class="mlabel">Traitées aujourd'hui <code>resolved=true</code></div>
+    <div class="mval" id="kpiResolved" style="color:#27500A">—</div>
+  </div>
+</div>
+
+<!-- ── LISTE ALERTES ─────────────────────────────────────────── -->
+<div class="card-c" id="alertsCard">
+  <div id="alertsList">
+    <div style="font-size:11px;color:#888;padding:8px 0">Chargement…</div>
+  </div>
+</div>
+
+<!-- ── MODAL CONFIRMATION TRAITEMENT ────────────────────────── -->
+<div id="resolveModal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);
+            z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:18px;
+              width:320px;border:1px solid #e5e3dc">
+    <div style="font-weight:600;font-size:14px;margin-bottom:8px">Traiter l'alerte</div>
+    <div style="font-size:11px;color:#888;margin-bottom:10px" id="resolveDesc"></div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:#888;margin-bottom:3px">Traité par</div>
+      <input type="text" id="resolvedBy" placeholder="Votre nom">
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:6px">
+      <button class="btn-c btn-sm" onclick="closeResolveModal()">Annuler</button>
+      <button class="btn-c btn-sm btn-success-sm" id="btnConfirmResolve"
+              onclick="confirmResolve()">Confirmer ✓</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/alerts.js"></script>
+{% endblock %}

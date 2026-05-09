@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Agents{% endblock %}
+
+{% block content %}
+
+<!-- ── TOPBAR ───────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="ptitle">Agents <code>agents</code></div>
+  <div style="display:flex;gap:6px;align-items:center">
+    <select id="fTeam" style="width:auto;font-size:11px" onchange="loadAgents()">
+      <option value="">Toutes les équipes</option>
+    </select>
+    <span class="badge-c bgr" id="totalBadge">—</span>
+    <button class="btn-c btn-primary btn-sm" onclick="openAddModal()">+ Ajouter</button>
+  </div>
+</div>
+
+<!-- ── KPIs ─────────────────────────────────────────────────── -->
+<div class="metrics-3" style="margin-bottom:12px">
+  <div class="metric">
+    <div class="mlabel">Agents actifs</div>
+    <div class="mval" id="kpiTotal">—</div>
+  </div>
+  <div class="metric">
+    <div class="mlabel">Meilleur score <code>avg_score</code></div>
+    <div class="mval" id="kpiBest" style="color:#27500A">—</div>
+  </div>
+  <div class="metric">
+    <div class="mlabel">Score le plus bas</div>
+    <div class="mval" id="kpiWorst" style="color:#791F1F">—</div>
+  </div>
+</div>
+
+<!-- ── LISTE AGENTS ──────────────────────────────────────────── -->
+<div class="card-c">
+  <div class="ctitle">
+    Liste agents <code>agents + teams</code>
+  </div>
+  <div id="agentsList">
+    <div class="row-c" style="color:#888;font-size:11px">Chargement…</div>
+  </div>
+</div>
+
+<!-- ── MODAL AJOUT AGENT ─────────────────────────────────────── -->
+<div id="addModal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);
+            z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:18px;
+              width:340px;border:1px solid #e5e3dc">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:600;font-size:14px">Nouvel agent</div>
+      <button class="btn-c btn-sm" onclick="closeAddModal()">✕</button>
+    </div>
+
+    <div style="margin-bottom:8px">
+      <div style="font-size:11px;color:#888;margin-bottom:3px">Nom complet *</div>
+      <input type="text" id="newName" placeholder="Ex : Karim Alaoui">
+    </div>
+    <div style="margin-bottom:8px">
+      <div style="font-size:11px;color:#888;margin-bottom:3px">Email</div>
+      <input type="text" id="newEmail" placeholder="karim@example.ma">
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:#888;margin-bottom:3px">Équipe</div>
+      <select id="newTeam">
+        <option value="">— Sans équipe —</option>
+      </select>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:6px">
+      <button class="btn-c btn-sm" onclick="closeAddModal()">Annuler</button>
+      <button class="btn-c btn-primary btn-sm" onclick="submitAddAgent()">Créer →</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/agents.js"></script>
+{% endblock %}
