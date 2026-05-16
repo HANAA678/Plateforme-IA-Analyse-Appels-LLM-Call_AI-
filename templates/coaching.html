@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Coaching{% endblock %}
+
+{% block content %}
+
+<!-- ── TOPBAR ───────────────────────────────────────────────── -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:10px">
+    <a href="/calls" style="font-size:11px;color:#888;text-decoration:none">← Retour appels</a>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="ava-lg" id="coachAva" style="background:#E6F1FB;color:#0C447C">??</div>
+      <div>
+        <div class="ptitle" id="coachName">Coaching</div>
+        <div style="font-size:11px;color:#888">
+          Fiche coaching · <code>coaching_notes</code>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:6px">
+    <a id="linkRapport" href="#"
+       style="display:none;font-size:11px;color:#0C447C;
+              text-decoration:none;align-self:center">
+      Voir rapport →
+    </a>
+    <button class="btn-c btn-sm" id="btnRegenerate"
+            onclick="generateCoaching()" style="display:none">
+      ↻ Regénérer
+    </button>
+  </div>
+</div>
+
+<!-- ── KPIs ─────────────────────────────────────────────────── -->
+<div class="metrics-3" id="kpiBlock" style="display:none;margin-bottom:12px">
+  <div class="metric">
+    <div class="mlabel">Score de l'appel <code>avg_score_at_generation</code></div>
+    <div class="mval" id="kpiScore" style="color:#0C447C">—</div>
+  </div>
+  <div class="metric">
+    <div class="mlabel">Appels analysés <code>calls_analyzed</code></div>
+    <div class="mval" id="kpiCalls">—</div>
+  </div>
+  <div class="metric">
+    <div class="mlabel">Générée le</div>
+    <div class="mval" id="kpiDate" style="font-size:13px">—</div>
+  </div>
+</div>
+
+<!-- ── CONTENU COACHING ──────────────────────────────────────── -->
+<div id="coachingContent" style="display:none">
+  <div class="two">
+
+    <div class="card-c">
+      <div class="ctitle">
+        Points faibles <code>coaching_notes.weak_points</code>
+      </div>
+      <div class="rblk">
+        <div class="rbt">Détectés sur cet appel</div>
+        <span id="weakPointsText"></span>
+      </div>
+
+      <div class="ctitle" style="margin-top:10px">
+        Problèmes vocaux <code>coaching_notes.vocal_issues</code>
+      </div>
+      <div class="rblk">
+        <div class="rbt">Analyse du signal audio</div>
+        <span id="vocalIssuesText"></span>
+      </div>
+    </div>
+
+    <div class="card-c">
+      <div class="ctitle">
+        Plan d'action <code>coaching_notes.recommended_training</code>
+      </div>
+      <div class="rblk">
+        <div class="rbt">Formation recommandée</div>
+        <span id="trainingText"></span>
+      </div>
+
+      <div class="ctitle" style="margin-top:10px">
+        Appel analysé <code>coaching_notes.example_call_id</code>
+      </div>
+      <div class="rblk">
+        <div class="rbt">Appel source de cette fiche</div>
+        <span id="exampleCallText"></span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Résumé performances -->
+  <div class="card-c">
+    <div class="ctitle">
+      Résumé performance <code>coaching_notes.performance_summary</code>
+    </div>
+    <div class="rblk" id="performanceSummary"></div>
+  </div>
+</div>
+
+<!-- ── ÉTAT VIDE : pas encore de fiche ───────────────────────── -->
+<div id="emptyBlock" style="display:none" class="card-c">
+  <div style="text-align:center;padding:24px">
+    <div style="font-size:22px;margin-bottom:8px">📋</div>
+    <div style="font-weight:600;font-size:13px;margin-bottom:4px">
+      Aucune fiche coaching générée pour cet appel
+    </div>
+    <div style="font-size:11px;color:#888;margin-bottom:14px">
+      Cliquez sur le bouton pour générer la fiche via Gemini.
+    </div>
+    <button class="btn-c btn-primary" onclick="generateCoaching()">
+      Générer maintenant →
+    </button>
+  </div>
+</div>
+
+<!-- ── ÉTAT GÉNÉRATION EN COURS ──────────────────────────────── -->
+<div id="generatingBlock" style="display:none" class="card-c">
+  <div style="text-align:center;padding:20px">
+    <span class="spinner"></span>
+    <span style="font-size:11px;color:#888;margin-left:8px">
+      Gemini analyse l'appel…
+    </span>
+  </div>
+</div>
+
+<!-- ── ÉTAT CHARGEMENT ────────────────────────────────────────── -->
+<div id="loadingBlock" class="card-c" style="text-align:center;padding:20px">
+  <span class="spinner"></span>
+  <span style="font-size:11px;color:#888;margin-left:8px">Chargement…</span>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/coaching.js"></script>
+{% endblock %}

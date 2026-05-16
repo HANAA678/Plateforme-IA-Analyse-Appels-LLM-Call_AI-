@@ -120,7 +120,7 @@ function renderTable(calls) {
           <a href="/audio?call_id=${c.call_id}"
              style="color:#1D9E75;text-decoration:none;font-size:11px">Audio</a>
           &nbsp;·&nbsp;
-          <a href="/coaching?agent_id=${c.agent_id || ''}"
+            <a href="/coaching?call_id=${c.call_id}"
              style="color:#7F77DD;text-decoration:none;font-size:11px">Coaching</a>
         </td>
       </tr>`;

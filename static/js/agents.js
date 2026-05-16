@@ -119,12 +119,6 @@ function renderAgents(agents) {
                      text-align:right;color:${scoreColor}">
           ${score}
         </span>
-        <a href="/coaching?agent_id=${a.id}"
-           class="btn-c btn-sm"
-           style="margin-left:8px;background:#EEEDFE;border-color:#CECBF6;
-                  color:#3C3489;text-decoration:none;white-space:nowrap">
-          Coaching
-        </a>
       </div>`;
   }).join('');
 }

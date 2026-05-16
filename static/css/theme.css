@@ -1,0 +1,179 @@
+/* ============================================================
+   CallAI v2 — Thème Light / Dark
+   Ajouter après style.css dans base.html
+   ============================================================ */
+
+/* ── Variables Light (défaut) ────────────────────────────────── */
+:root {
+  --bg-app:       #f5f4f1;
+  --bg-main:      #ffffff;
+  --bg-sidebar:   #f5f4f1;
+  --bg-card:      #ffffff;
+  --bg-metric:    #f5f4f1;
+  --bg-rblk:      #f5f4f1;
+  --bg-input:     #ffffff;
+  --bg-drop:      #ffffff;
+  --bg-modal:     #ffffff;
+
+  --border:       #e5e3dc;
+  --border-input: #d3d1c7;
+
+  --text-main:    #1a1a18;
+  --text-muted:   #888888;
+  --text-label:   #666666;
+
+  --ni-hover:     #ffffff;
+  --btn-bg:       #ffffff;
+  --btn-hover:    #f5f4f1;
+
+  --shadow:       rgba(0,0,0,.06);
+}
+
+/* ── Variables Dark ──────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-app:       #0d1117;
+  --bg-main:      #161b22;
+  --bg-sidebar:   #0d1117;
+  --bg-card:      #161b22;
+  --bg-metric:    #21262d;
+  --bg-rblk:      #21262d;
+  --bg-input:     #21262d;
+  --bg-drop:      #21262d;
+  --bg-modal:     #1c2128;
+
+  --border:       #30363d;
+  --border-input: #30363d;
+
+  --text-main:    #e6edf3;
+  --text-muted:   #7d8590;
+  --text-label:   #8b949e;
+
+  --ni-hover:     #21262d;
+  --btn-bg:       #21262d;
+  --btn-hover:    #30363d;
+
+  --shadow:       rgba(0,0,0,.3);
+}
+
+/* ── Application des variables ───────────────────────────────── */
+body {
+  background: var(--bg-app) !important;
+  color:      var(--text-main) !important;
+  transition: background .2s, color .2s;
+}
+
+.shell        { background: var(--bg-main) !important; }
+.sidebar      { background: var(--bg-sidebar) !important; border-right-color: var(--border) !important; }
+.logo         { border-bottom-color: var(--border) !important; color: var(--text-main) !important; }
+.nlabel       { color: var(--text-muted) !important; }
+.ni           { color: var(--text-label) !important; }
+.ni:hover,
+.ni.active    { background: var(--ni-hover) !important; color: var(--text-main) !important; }
+
+.content      { background: var(--bg-main) !important; }
+
+/* Cards */
+.card-c {
+  background:   var(--bg-card)   !important;
+  border-color: var(--border)    !important;
+}
+
+/* Métriques */
+.metric       { background: var(--bg-metric) !important; }
+.mlabel       { color: var(--text-muted) !important; }
+.mval         { color: var(--text-main)  !important; }
+.msub         { color: var(--text-muted) !important; }
+
+/* Rows */
+.row-c        { border-bottom-color: var(--border) !important; }
+.ctitle       { color: var(--text-muted) !important; }
+.ptitle       { color: var(--text-main)  !important; }
+
+/* Blocs résumé */
+.rblk         { background: var(--bg-rblk) !important; color: var(--text-main) !important; }
+.rbt          { color: var(--text-muted) !important; }
+
+/* Inputs & selects */
+select,
+input[type="text"],
+input[type="datetime-local"],
+textarea {
+  background:   var(--bg-input)    !important;
+  border-color: var(--border-input)!important;
+  color:        var(--text-main)   !important;
+}
+
+/* Boutons */
+.btn-c {
+  background:   var(--btn-bg)      !important;
+  border-color: var(--border-input)!important;
+  color:        var(--text-main)   !important;
+}
+.btn-c:hover  { background: var(--btn-hover) !important; }
+.btn-primary  { background: var(--text-main) !important; color: var(--bg-main) !important; border-color: var(--text-main) !important; }
+.btn-primary:hover { opacity: .85; }
+
+/* Drop zone */
+.drop-zone    { border-color: var(--border-input) !important; background: var(--bg-drop) !important; }
+.drop-hint    { color: var(--text-muted) !important; }
+
+/* Criteria cards */
+.criteria-card { background: var(--bg-metric) !important; border-color: var(--border) !important; }
+.crit-desc     { color: var(--text-muted) !important; }
+.crit-pts      { color: var(--text-muted) !important; }
+
+/* Progress bars */
+.pbar, .ebr   { background: var(--border) !important; }
+
+/* Tableau */
+.calls-table th { border-bottom-color: var(--border) !important; color: var(--text-muted) !important; }
+.calls-table td { border-bottom-color: var(--border) !important; }
+
+/* Timeline */
+.tl           { border-bottom-color: var(--border) !important; }
+
+/* Modal */
+#addModal > div,
+#resolveModal > div,
+#resolveModal > div {
+  background:   var(--bg-modal) !important;
+  border-color: var(--border)   !important;
+}
+
+/* Alert rows */
+.alert-row    { border-bottom-color: var(--border) !important; }
+
+/* Code inline */
+code {
+  background: var(--bg-metric) !important;
+  color: #58a6ff !important;
+}
+
+/* Pagination */
+#pageInfo     { color: var(--text-muted) !important; }
+
+/* Spinner */
+.spinner      { border-color: var(--border) !important; border-top-color: var(--text-main) !important; }
+
+/* Toast */
+.toast-c      { box-shadow: 0 4px 12px var(--shadow); }
+
+/* ── Bouton toggle ───────────────────────────────────────────── */
+.theme-toggle {
+  width:  32px;
+  height: 32px;
+  border-radius: 7px;
+  border: 1px solid var(--border-input);
+  background: var(--btn-bg);
+  color: var(--text-main);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+  margin-left: auto;
+  margin-bottom: 8px;
+}
+.theme-toggle:hover { background: var(--btn-hover); }

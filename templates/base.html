@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CallAI v2 — {% block title %}{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/theme.css">
 </head>
 <body>
   <div class="shell">
@@ -24,6 +25,14 @@
         <a href="/agents"    class="ni {% if active == 'agents'    %}active{% endif %}">👤 Agents</a>
         <a href="/coaching"  class="ni {% if active == 'coaching'  %}active{% endif %}">✓ Coaching</a>
         <a href="/alerts"    class="ni {% if active == 'alerts'    %}active{% endif %}">⚠ Alertes</a>
+
+        <!-- Toggle thème en bas de sidebar -->
+        <div style="padding:8px;margin-top:auto;padding-top:16px">
+          <button class="theme-toggle" id="themeToggle"
+                  onclick="toggleTheme()" title="Changer le thème">
+            🌙
+          </button>
+        </div>
       </nav>
     </div>
 
@@ -40,16 +49,45 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <script>
-    // Fonction toast globale
+    /* ── Toast global ──────────────────────────────────────── */
     function showToast(msg, type = 'default') {
       const t = document.createElement('div');
       t.className = 'toast-c';
-      t.style.background = type === 'error' ? '#791F1F' : type === 'success' ? '#1D9E75' : '#1a1a18';
+      t.style.background =
+        type === 'error'   ? '#791F1F' :
+        type === 'success' ? '#1D9E75' : '#1a1a18';
       t.textContent = msg;
       document.getElementById('toastContainer').appendChild(t);
       requestAnimationFrame(() => t.classList.add('show'));
-      setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
+      setTimeout(() => {
+        t.classList.remove('show');
+        setTimeout(() => t.remove(), 300);
+      }, 3000);
     }
+
+    /* ── Thème Light / Dark ────────────────────────────────── */
+    const THEME_KEY = 'callai_theme';
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const btn = document.getElementById('themeToggle');
+      if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+      localStorage.setItem(THEME_KEY, theme);
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    }
+
+    // Appliquer le thème sauvegardé dès le chargement (évite le flash)
+    (function () {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved) applyTheme(saved);
+      else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        applyTheme('dark');   // respecte le thème système par défaut
+      }
+    })();
   </script>
 
   {% block scripts %}{% endblock %}
