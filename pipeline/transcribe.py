@@ -16,7 +16,7 @@ _model_lock = threading.Lock()  # ← ajouter ça
 
 def transcribe_audio(file_path: str):
     with _model_lock:  # ← une seule transcription à la fois
-        segments_gen, info = model.transcribe(file_path, beam_size=5)
+        segments_gen, info = model.transcribe(file_path, beam_size=5)#info=des métadonnées sur la transcription(language,duration....)
         
         segments = []
         for seg in segments_gen:  # ← générateur consommé DANS le lock
@@ -43,7 +43,7 @@ def transcribe_audio(file_path: str):
 def align_with_gemini(diarization_segments: list, whisper_segments: list) -> str:
     """
     Prend les segments pyannote (SPEAKER_00, SPEAKER_01, etc.) + les segments
-    Whisper, les fusionne en un texte brut "SPEAKER_XX: texte", puis demande
+    Whisper, les fusionne en un texte brut ------"SPEAKER_XX: texte"------, puis demande
     à Gemini qui est l'agent et qui est le client.
 
     diarization_segments : liste de dicts {start_sec, end_sec, speaker}
@@ -62,7 +62,7 @@ def align_with_gemini(diarization_segments: list, whisper_segments: list) -> str
     # ── 2. Appel Gemini ───────────────────────────────────────────────
     result = _call_gemini(raw_text)
     if not result:
-        print("[gemini_align] ❌ Gemini a échoué — retour du texte brut")
+        print("[gemini_align]  Gemini a échoué — retour du texte brut")
         return raw_text
 
     return result
@@ -70,7 +70,7 @@ def align_with_gemini(diarization_segments: list, whisper_segments: list) -> str
 #la fct qui fait fusion pour avoir cette forme là :     ## speaker : text ##
 def _build_raw_transcript(whisper_segments: list, diarization: list) -> list:
     """
-    Fusionne Whisper + pyannote et retourne des lignes "SPEAKER_XX: texte".
+    Fusionne Whisper + pyannote et retourne des lignes "SPEAKER_XX : texte".
     Les segments Whisper qui chevauchent plusieurs speakers sont découpés.
     """
     #cela est executé seulement si le résultat de pyannote est vide cad que pyannote n'arrive pas a détecter aucun speaker par ex audio très court 
@@ -145,14 +145,11 @@ def _split_text_by_speakers_raw(text: str, speakers: list) -> list:
             result.append((spk, chunk))
     return result if result else [(speakers[0], text)]
 
-
-
-
-
-
-  # ================================================================
+# ================================================================
 # Appel Gemini
 # ================================================================
+
+#raw_transcript c'est ce qu'on obtient à partir de la fct build_raw_transcript()= speakerXX:"text"
 
 def _call_gemini(raw_transcript: str) -> str:
     """
@@ -164,9 +161,8 @@ def _call_gemini(raw_transcript: str) -> str:
         print("[gemini_align] Pas de clé GEMINI_API_KEY — alignement ignoré")
         return ""
 
-    prompt = _build_prompt(raw_transcript)
+    prompt = _build_prompt(raw_transcript)  #raw_transcript c'est speakerxx : text
 
-    # Gemini 2.0 Flash (modèle rapide, gratuit, adapté à cette tâche)
     model   = "gemini-2.0-flash"
     url     = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     payload = {
@@ -192,10 +188,10 @@ def _call_gemini(raw_transcript: str) -> str:
 
             text = (
                 data
-                .get("candidates", [{}])[0]
-                .get("content", {})
-                .get("parts", [{}])[0]
-                .get("text", "")
+                .get("candidates", [{}])[0] #candidates=les réponses possibles proposées par Gemini on prend la 1ere rep [0]
+                .get("content", {})#contenu de la réponse 
+                .get("parts", [{}])[0]#les morceaux du contenu peut contenirdes images,text,...
+                .get("text", "")#le texte écrit par Gemini ca contient Agent: bonjour;Client: oui bonjour
                 .strip()
             )
 
@@ -206,7 +202,7 @@ def _call_gemini(raw_transcript: str) -> str:
             # Valider et nettoyer la réponse
             validated = _validate_response(text, raw_transcript)
             if validated:
-                print(f"[gemini_align] ✅ Succès ({len(validated.splitlines())} lignes)")
+                print(f"[gemini_align]  Succès ({len(validated.splitlines())} lignes)")
                 return validated
 
         except Exception as e:
@@ -288,18 +284,19 @@ def _validate_response(text: str, original: str) -> str:
     """
     cleaned = text.replace("```", "").strip()
     valid_lines = [
-        l.strip() for l in cleaned.splitlines()
-        if l.strip().startswith("Agent:") or l.strip().startswith("Client:")
+        l.strip() for l in cleaned.splitlines() #strip() est une fonction qui permet de supprimer les espaces les \t....
+        if l.strip().startswith("Agent:") or l.strip().startswith("Client:")#pour garder juste les lignes qui commencent par client or agent 
     ]
 
     original_lines = [
-        l for l in original.splitlines()
+        l for l in original.splitlines() #original c'est les lignes originaux (speakerXX:text)
         if l.strip()
     ]
+    #le minimum acceptable de réponse Gemini =au minimum 2 lignes ou 50% de original_lines(speaker:text )
     min_expected = max(2, int(len(original_lines) * 0.5))
 
     if len(valid_lines) < min_expected:
-        print(f"[gemini_align] ⚠️ Réponse trop courte : {len(valid_lines)}/{len(original_lines)} lignes")
+        print(f"[gemini_align]  Réponse trop courte : {len(valid_lines)}/{len(original_lines)} lignes")
         return ""
 
     return "\n".join(valid_lines)

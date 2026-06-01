@@ -12,7 +12,7 @@ GEMINI_URL = (
 
 def evaluate_transcription(
     transcription: str,
-    criteria_config: list,
+    criteria_config: list, #écoute active , résolution du problème , respect du script , proposition commerciale , Accueil & présentation client
     supervisor_notes: str = "",
     focus_points: str = "",
     thresholds: dict = None,
@@ -38,8 +38,10 @@ def evaluate_transcription(
 
 def _build_prompt(transcription, criteria_config, supervisor_notes, focus_points, thresholds):
 
+#max_pts est unn champ ds la table criteria_config c'est lechamp qui montre la note de chaque critere 
+#is_active est un champ ds meme table j'ai utilisé cette champ pour pouvoir activer ou désactiver des critères sans casser le système.
     total_max = sum(c["max_pts"] for c in criteria_config if c.get("is_active", True))
-
+#rendre les critères actives sous une forme que gemini peut utiliser facilement clé="greeting" | label="Accueil" | max=10 pts | acceuil & représentation du client 
     criteria_lines = "\n".join(
         f'  - clé="{c["key"]}" | label="{c["label"]}" | max={c["max_pts"]} pts | {c["description"]}'
         for c in criteria_config if c.get("is_active", True)
@@ -182,7 +184,7 @@ def _call_gemini(api_key: str, prompt: str) -> dict | None:
             data = resp.json()
 
             if "error" in data:
-                print(f"[evaluate] ❌ Erreur API (tentative {attempt}) : {data['error'].get('message')}")
+                print(f"[evaluate]  Erreur API (tentative {attempt}) : {data['error'].get('message')}")
                 continue
 
             raw_text = (
@@ -195,9 +197,9 @@ def _call_gemini(api_key: str, prompt: str) -> dict | None:
             )
 
             if not raw_text:
-                print(f"[evaluate] ⚠️ Réponse vide (tentative {attempt})")
+                print(f"[evaluate]  Réponse vide (tentative {attempt})")
                 continue
-
+#transformer la réponse de Gemini  en json car gemini meme si je lui demande de json il peut parfois ne pas envoyer cette forme.
             parsed = _parse_json(raw_text)
             if parsed is not None:
                 print(f"[evaluate] ✅ Évaluation reçue (tentative {attempt})")
@@ -210,7 +212,7 @@ def _call_gemini(api_key: str, prompt: str) -> dict | None:
 
     return None
 
-
+#transformer la réponse de Gemini en JSON.
 def _parse_json(text: str) -> dict | None:
     cleaned = re.sub(r"```(?:json)?", "", text).strip().rstrip("`").strip()
     try:
@@ -225,7 +227,7 @@ def _parse_json(text: str) -> dict | None:
     print(f"[evaluate] ⚠️ JSON invalide :\n{cleaned[:300]}")
     return None
 
-
+#result est resultat json envoyé par gemini 
 def _validate_and_fix(result: dict, criteria_config: list, thresholds: dict) -> None:
     """
     Validation + correction en deux passes :
@@ -234,7 +236,8 @@ def _validate_and_fix(result: dict, criteria_config: list, thresholds: dict) -> 
     """
     total_max = sum(c["max_pts"] for c in criteria_config if c.get("is_active", True))
 
-    # ── Champs simples ────────────────────────────────────────────
+    
+    # verifie si criteria est un dictionnaire à l'aide de la fct isinstance 
     if not isinstance(result.get("criteria"), dict):
         result["criteria"] = {}
     result.setdefault("criteria_justifications", {})
@@ -276,16 +279,16 @@ def _validate_and_fix(result: dict, criteria_config: list, thresholds: dict) -> 
         justif  = result["criteria_justifications"].get(key, "").lower()
         max_pts = c["max_pts"]
 
-        # Si la justification dit "non observable" mais le score est > 0
+        # Si la justification dit "non observable" mais le score est > 0 DONC CONRADICTION donc forcer score a 0 
         if any(marker in justif for marker in non_observable_markers) and score > 0:
-            print(f"[evaluate] 🔧 Contradiction détectée sur '{key}' : "
+            print(f"[evaluate]  Contradiction détectée sur '{key}' : "
                   f"score={score} mais justification=non observable → forcé à 0")
             result["criteria"][key] = 0
 
     # ── Recalculer score_total après corrections ──────────────────
     recalculated = sum(result["criteria"].values())
     if recalculated != result.get("score_total"):
-        print(f"[evaluate] 🔧 score_total corrigé : {result.get('score_total')} → {recalculated}")
+        print(f"[evaluate]  score_total corrigé : {result.get('score_total')} → {recalculated}")
         result["score_total"] = recalculated
 
     # Borner entre 0 et total_max

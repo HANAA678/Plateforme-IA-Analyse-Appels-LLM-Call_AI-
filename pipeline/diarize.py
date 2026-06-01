@@ -28,8 +28,11 @@ def _extract_annotation(diarization):
     - Annotation (ancien) : a itertracks directement
     - DiarizeOutput (nouveau) : wrapper, l'Annotation est dans .diarization
     """
+#hasattr(obj, "x") veut dire :
+#“Est-ce que cet objet possède quelque chose qui s’appelle x ?”
 
-    # Cas 1 : Annotation directe
+
+    # Cas 1 : Annotation directe 
     if hasattr(diarization, "itertracks"):
         return diarization
 
@@ -62,28 +65,28 @@ def diarize_audio(file_path: str, total_duration: float):
         }
 
     pipeline = get_pipeline()
-
+#j'ai utilisé sf.read pour lire l'audio et transformer en waveform_np (des valeurs)et sample_rate=fréquence
     waveform_np, sample_rate = sf.read(
         file_path,
-        dtype="float32",
-        always_2d=True
+        dtype="float32", #pour transformeer l'audio en waveform(nombres)en decimal (float)
+        always_2d=True   #audio avec 2 speakers on ajoute ca 
     )
 
     waveform_tensor = torch.tensor(waveform_np.T)
-
+#format attendu pour pyannote 
     audio_input = {
         "waveform": waveform_tensor,
         "sample_rate": sample_rate
     }
-
+#appele a le modele pyannote qu on a en lui donnant audio_input 
     raw_output = pipeline(audio_input)
-    print("TYPE DIARIZATION:", type(raw_output))
+    print("TYPE DIARIZATION:", type(raw_output))#pour savoir le type d'objet retourné pr pyannote est ce que annotation ou bien diarize output ou ...;
 
-    annotation = _extract_annotation(raw_output)
+    annotation = _extract_annotation(raw_output)#pour normaliser le résultat et transformer n import quel result en anntation(le type d objet qu on veut)
 
     segments = []
     speaker_times = {}
-
+    #pour boucler sur l objet annotation retourné par pyannote pour savoir chaue start end et speaker 
     for turn, _, speaker in annotation.itertracks(yield_label=True):
         duration = turn.end - turn.start
 
@@ -91,7 +94,7 @@ def diarize_audio(file_path: str, total_duration: float):
             "speaker": speaker,
             "start_sec": round(turn.start, 2),
             "end_sec": round(turn.end, 2),
-            "pct_width": round((duration / total_duration) * 100, 1)
+            "pct_width": round((duration / total_duration) * 100, 1)#“le % du temps cette personne parle dans l’audio”
         })
 
         speaker_times[speaker] = speaker_times.get(speaker, 0) + duration
@@ -114,7 +117,7 @@ def diarize_audio(file_path: str, total_duration: float):
 
         if gap >= 3:
             silences.append({
-                "start_sec": round(sorted_segs[i - 1]["end_sec"], 2),
+               "start_sec": round(sorted_segs[i - 1]["end_sec"], 2),
                 "duration_sec": round(gap, 2),
                 "type": "hold"
             })

@@ -69,7 +69,7 @@ def run_pipeline(call_id, audio_path, execute, fetchone, fetchall):
         diar["silence_pct"],
         diar["silence_max_sec"],
         diar["interruptions_count"],
-        json.dumps(diar["silences"]),
+        json.dumps(diar["silences"]),#json.dumps permet de transformer un objet en json car silences est une list et sql ne peut pas stocker ca directement 
         json.dumps(diar["diarization"]),
     ))
 
@@ -96,6 +96,7 @@ def run_pipeline(call_id, audio_path, execute, fetchone, fetchall):
     # ================================================================
     # 4. ÉVALUATION GEMINI
     # ================================================================
+    #RECUPERER supervisor_notes et focus_points from calls
     call_row = fetchone("""
         SELECT supervisor_notes, focus_points
         FROM calls
@@ -104,16 +105,17 @@ def run_pipeline(call_id, audio_path, execute, fetchone, fetchall):
 
     supervisor_notes = (call_row or {}).get("supervisor_notes", "") or ""
     focus_points     = (call_row or {}).get("focus_points",     "") or ""
-
+#recupere les critères valides  
     rows = fetchall("""
         SELECT key, label, max_pts, description, is_active
         FROM criteria_config
         WHERE is_active = TRUE
         ORDER BY sort_order
     """)
+    #on stocke ds criteria_config les critere valide (criteria_config contient key label max_pts description is_active)
     criteria_config = [dict(row) for row in rows] if rows else []
 
-    if not criteria_config:
+    if not criteria_config: # cad aucun critere n as ete retourné depuis bd alors criteria_config on utiise des autres criteres par defaut 
         criteria_config = [
             {"key": "greeting",   "label": "Accueil & présentation", "max_pts": 20, "description": "Accueil professionnel",          "is_active": True},
             {"key": "listening",  "label": "Écoute active",           "max_pts": 20, "description": "Reformulation et compréhension", "is_active": True},
