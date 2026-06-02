@@ -9,7 +9,7 @@
 - Documentation API : Swagger
 - Transcription: Whisper(Open AI)
 - Diarisation : pyannote / speaker-diarization-3.1
-- Alignement & Évaluation:Nommage locuteurs + évaluation qualité (Gemini 2.0 flash)
+- Alignement & Évaluation:Nommage locuteurs + évaluation qualité +génération des fiches coaching (Gemini 2.5 flash)
 - Base de données : PostgreSQL
 - Frontend : HTML,CSS,JS 
 
