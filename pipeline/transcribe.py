@@ -12,7 +12,7 @@ import requests
 import threading
 
 model = WhisperModel("base", device="cpu", compute_type="int8")
-_model_lock = threading.Lock()  # ← ajouter ça
+_model_lock = threading.Lock()  
 
 def transcribe_audio(file_path: str):
     with _model_lock:  # ← une seule transcription à la fois
@@ -163,7 +163,7 @@ def _call_gemini(raw_transcript: str) -> str:
 
     prompt = _build_prompt(raw_transcript)  #raw_transcript c'est speakerxx : text
 
-    model   = "gemini-2.0-flash"
+    model   = "gemini-2.5-flash"
     url     = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     payload = {
         "contents": [

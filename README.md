@@ -9,7 +9,7 @@
 - Documentation API : Swagger
 - Transcription: Whisper(Open AI)
 - Diarisation : pyannote / speaker-diarization-3.1
-- Alignement & Évaluation:Nommage locuteurs + évaluation qualité
+- Alignement & Évaluation:Nommage locuteurs + évaluation qualité (Gemini 2.0 flash)
 - Base de données : PostgreSQL
 - Frontend : HTML,CSS,JS 
 
@@ -139,6 +139,6 @@ C:.
 ![Pipeline CallAI](assets/pipeline_traitement_appels_2.png)
 
 ## Documentation API
-La documentation complète de l'API est disponible via Swagger UI:
+Après démarrage du serveur la documentation complète de l'API est disponible via Swagger :
 
 http://127.0.0.1:8000/docs
