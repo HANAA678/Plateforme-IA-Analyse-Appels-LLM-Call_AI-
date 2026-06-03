@@ -15,7 +15,6 @@
     <input type="file" id="fileInput" accept=".wav,.mp3,.m4a" style="display:none">
     <div class="drop-icon">⬆</div>
     <div class="drop-title" id="dropTitle">Glisse le fichier ici ou clique pour choisir</div>
-    <!--<div class="drop-hint">WAV · MP3 · M4A — max 100 MB</div> -->
   </div>
 
   <!-- Barre de progression (cachée par défaut) -->
@@ -110,7 +109,6 @@
     Le LLM évalue l'appel selon ces critères. Chaque critère sera noté et justifié automatiquement.
   </div>
 
-  <!-- Skeleton loader -->
   <div id="criteriaLoading" class="two">
     <div>
       <div class="criteria-card" style="opacity:.4">
@@ -120,15 +118,13 @@
     </div>
   </div>
 
-  <!-- Critères réels injectés par JS -->
   <div class="two" id="criteriaGrid" style="display:none"></div>
 
-  <!-- Récap total + bouton -->
   <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; flex-wrap:wrap; gap:8px;">
     <div id="criteriaTotal"
          style="background:#f5f4f1;border-radius:8px;padding:8px 10px;font-size:11px;color:#888;display:none">
       <strong>Total : 100 pts</strong><br>
-      Score ≥ 80 → Conforme &nbsp;·&nbsp; 60–79 → Partiel &nbsp;·&nbsp; &lt; 60 → Non-conforme
+      Score ≥ 80 → Conforme  ·  60–79 → Partiel  ·  &lt; 60 → Non-conforme
     </div>
     <button class="btn-c btn-primary" id="btnAnalyse"
             style="padding:8px 20px; margin-left:auto"
@@ -138,16 +134,51 @@
   </div>
 </div>
 
-<!-- ── MESSAGE SUCCÈS (caché par défaut) ────────────────────── -->
+<!-- ── MESSAGE SUCCÈS ────────────────────────────────────────── -->
 <div id="successBlock" style="display:none" class="card-c">
-  <div style="display:flex; align-items:center; gap:10px;">
-    <span style="font-size:22px">✅</span>
-    <div>
-      <div style="font-weight:600; font-size:13px; margin-bottom:2px">Analyse terminée avec succès</div>
-      <div style="font-size:11px; color:#888">
-        L'appel a été évalué.
-        <a id="linkRapport" href="#" style="color:#0C447C; font-weight:600">Voir le rapport →</a>
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+
+    <!-- Texte succès + lien rapport -->
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="font-size:22px">✅</span>
+      <div>
+        <div style="font-weight:600; font-size:13px; margin-bottom:2px">Analyse terminée avec succès</div>
+        <div style="font-size:11px; color:#888">
+          L'appel a été évalué.
+          <a id="linkRapport" href="#" style="color:#0C447C; font-weight:600">Voir le rapport →</a>
+        </div>
       </div>
+    </div>
+
+    <!-- Toggle "Voir la transcription" -->
+    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;">
+      <span style="font-size:12px; color:#555;">Voir la transcription</span>
+      <div style="position:relative; width:40px; height:22px;">
+        <input type="checkbox" id="toggleTranscription"
+               style="opacity:0; width:0; height:0; position:absolute;"
+               onchange="toggleTranscriptionBlock()">
+        <span id="toggleTrack"
+              style="position:absolute; inset:0; background:#ccc; border-radius:22px;
+                     transition:background .2s; cursor:pointer;"></span>
+        <span id="toggleThumb"
+              style="position:absolute; top:3px; left:3px; width:16px; height:16px;
+                     background:#fff; border-radius:50%; transition:left .2s;
+                     box-shadow:0 1px 3px rgba(0,0,0,.25);"></span>
+      </div>
+    </label>
+
+  </div>
+
+  <!-- Bloc transcription (caché par défaut) -->
+  <div id="transcriptionBlock" style="display:none; margin-top:14px;">
+    <div style="font-size:11px; font-weight:600; color:#555; margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em;">
+      Transcription alignée <code style="font-weight:400; text-transform:none;">Agent: / Client:</code>
+    </div>
+    <div id="transcriptionContent"
+         style="background:#f5f4f1; border-radius:8px; padding:12px 14px;
+                font-size:12px; line-height:1.7; white-space:pre-wrap;
+                max-height:320px; overflow-y:auto; color:#2c2c3a;
+                border:1px solid #e0ddd6;">
     </div>
   </div>
 </div>

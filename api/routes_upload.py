@@ -23,18 +23,12 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 async def upload_call(
     file:             UploadFile = File(...),
     agent_id:         str        = Form(...),
-    called_at:        str        = Form(...),            # "2026-04-20T14:32:00"
-    call_type:        str        = Form("information"),  # reclamation/commercial/technique/information
-    priority:         str        = Form("normale"),      # normale/haute/urgente
+    called_at:        str        = Form(...),
+    call_type:        str        = Form("information"),
+    priority:         str        = Form("normale"),
     supervisor_notes: str        = Form(""),
     focus_points:     str        = Form(""),
 ):
-    """
-    Reçoit le fichier .wav + le formulaire, crée l'appel en BDD
-    et lance le pipeline de manière synchrone.
-    Utilisé par : page Upload (bouton "Lancer l'analyse")
-    """
-
     # ── 1. Valider le fichier ──────────────────────────────────────
     if not file.filename.endswith(".wav"):
         raise HTTPException(status_code=400, detail="Seuls les fichiers .wav sont acceptés.")
@@ -67,7 +61,7 @@ async def upload_call(
         called_at_dt = datetime.now()
 
     # ── 6. Créer la ligne dans calls (status = pending) ───────────
-    audio_url = f"/tmp/audio/{filename}"  # remplacer par S3 plus tard
+    audio_url = f"/tmp/audio/{filename}"
 
     execute("""
         INSERT INTO calls (
@@ -87,9 +81,9 @@ async def upload_call(
     print(f"[upload] Appel {call_id} créé — lancement pipeline...")
 
     # ── 7. Lancer le pipeline (synchrone) ─────────────────────────
-    # Pour passer à Celery plus tard : remplacer par process_call.delay(call_id, audio_path)
     try:
-        run_pipeline(
+        # run_pipeline retourne aligned_text (transcription "Agent: / Client:")
+        aligned_text = run_pipeline(
             call_id    = call_id,
             audio_path = audio_path,
             execute    = execute,
@@ -101,11 +95,12 @@ async def upload_call(
         print(f"[upload] Pipeline echoue : {e}")
         raise HTTPException(status_code=500, detail=f"Erreur pipeline : {str(e)}")
 
-    # ── 8. Retourner la réponse ───────────────────────────────────
+    # ── 8. Retourner la réponse avec la transcription alignée ─────
     return JSONResponse(status_code=200, content={
-        "call_id": call_id,
-        "status":  "evaluated",
-        "message": "Pipeline termine avec succes.",
+        "call_id":      call_id,
+        "status":       "evaluated",
+        "message":      "Pipeline termine avec succes.",
+        "aligned_text": aligned_text or "",  # ← utilisé par le toggle transcription
     })
 
 
@@ -116,15 +111,18 @@ async def upload_call(
 @router.get("/api/calls/{call_id}/status")
 def get_call_status(call_id: str):
     """
-    Retourne le statut actuel du traitement de l'appel.
+    Retourne le statut + la transcription alignée si disponible.
     Valeurs : pending → transcribed → evaluated → failed
-    Utilisé par : page Upload (barre de progression après l'upload)
     """
     row = fetchone(
-        "SELECT status FROM calls WHERE id = %s",
+        "SELECT status, transcription_text FROM calls WHERE id = %s",
         (call_id,),
     )
     if not row:
         raise HTTPException(status_code=404, detail="Appel introuvable.")
 
-    return {"call_id": call_id, "status": row["status"]}
+    return {
+        "call_id":            call_id,
+        "status":             row["status"],
+        "transcription_text": row["transcription_text"] or "",  # fallback toggle
+    }
