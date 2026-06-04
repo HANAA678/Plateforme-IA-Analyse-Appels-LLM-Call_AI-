@@ -1,5 +1,4 @@
 # environment
-venv/
 .env
 
 # python cache

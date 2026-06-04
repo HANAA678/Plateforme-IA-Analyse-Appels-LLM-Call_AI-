@@ -174,7 +174,8 @@ def _call_gemini(api_key: str, prompt: str) -> dict | None:
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature":     0.0,
-            "maxOutputTokens": 4096,
+            "maxOutputTokens": 8192,
+            "responseMimeType": "application/json"
         },
     }
 
