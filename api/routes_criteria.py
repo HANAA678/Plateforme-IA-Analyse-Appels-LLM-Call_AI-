@@ -18,7 +18,7 @@ def get_criteria():
     rows = fetchall(
         """
         SELECT id, key, label, max_pts, description, is_active, sort_order
-        FROM criteria_config
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.criteria_config`
         ORDER BY sort_order
         """
     )
@@ -42,8 +42,8 @@ def update_criteria(key: str, body: dict):
     """
     # Vérifier que le critère existe
     existing = fetchone(
-        "SELECT id FROM criteria_config WHERE key = %s",
-        (key,),
+        "SELECT id FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.criteria_config` WHERE key = @key",
+        {"key": key},
     )
     if not existing:
         raise HTTPException(status_code=404, detail=f"Critère '{key}' introuvable.")
@@ -59,17 +59,17 @@ def update_criteria(key: str, body: dict):
             detail=f"Aucun champ valide fourni. Champs acceptés : {allowed_fields}",
         )
 
-    set_clause = ", ".join(f"{field} = %s" for field in updates)
-    values     = list(updates.values()) + [key]
+    set_clause = ", ".join(f"{field} = @{field}" for field in updates)
+    params     = {**updates, "key": key}
 
     execute(
-        f"UPDATE criteria_config SET {set_clause} WHERE key = %s",
-        values,
+        f"UPDATE `dda-dpl-datalab-sdbx-za.SpeakFlow.criteria_config` SET {set_clause} WHERE key = @key",
+        params,
     )
 
     # Retourner le critère mis à jour
     updated = fetchone(
-        "SELECT id, key, label, max_pts, description, is_active, sort_order FROM criteria_config WHERE key = %s",
-        (key,),
+        "SELECT id, key, label, max_pts, description, is_active, sort_order FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.criteria_config` WHERE key = @key",
+        {"key": key},
     )
     return dict(updated)

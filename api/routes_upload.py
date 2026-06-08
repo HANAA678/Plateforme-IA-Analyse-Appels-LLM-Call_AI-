@@ -42,7 +42,10 @@ async def upload_call(
         raise HTTPException(status_code=400, detail=f"priority invalide. Valeurs acceptées : {valid_priorities}")
 
     # ── 3. Valider l'agent ────────────────────────────────────────
-    agent = fetchone("SELECT id FROM agents WHERE id = %s", (agent_id,))
+    agent = fetchone(
+        "SELECT id FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.agents` WHERE id = @agent_id",
+        {"agent_id": agent_id},
+    )
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent {agent_id} introuvable.")
 
@@ -64,25 +67,31 @@ async def upload_call(
     audio_url = f"/tmp/audio/{filename}"
 
     execute("""
-        INSERT INTO calls (
+        INSERT INTO `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` (
             id, agent_id, audio_url, called_at,
             call_type, priority,
             supervisor_notes, focus_points,
             status, created_at
         )
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'pending', NOW())
-    """, (
-        call_id, agent_id, audio_url, called_at_dt,
-        call_type, priority,
-        supervisor_notes or None,
-        focus_points     or None,
-    ))
+        VALUES (@call_id, @agent_id, @audio_url, @called_at,
+                @call_type, @priority,
+                @supervisor_notes, @focus_points,
+                'pending', CURRENT_TIMESTAMP())
+    """, {
+        "call_id":          call_id,
+        "agent_id":         agent_id,
+        "audio_url":        audio_url,
+        "called_at":        called_at_dt,
+        "call_type":        call_type,
+        "priority":         priority,
+        "supervisor_notes": supervisor_notes or None,
+        "focus_points":     focus_points     or None,
+    })
 
     print(f"[upload] Appel {call_id} créé — lancement pipeline...")
 
     # ── 7. Lancer le pipeline (synchrone) ─────────────────────────
     try:
-        # run_pipeline retourne aligned_text (transcription "Agent: / Client:")
         aligned_text = run_pipeline(
             call_id    = call_id,
             audio_path = audio_path,
@@ -91,7 +100,10 @@ async def upload_call(
             fetchall   = fetchall,
         )
     except Exception as e:
-        execute("UPDATE calls SET status = 'failed' WHERE id = %s", (call_id,))
+        execute(
+            "UPDATE `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` SET status = 'failed' WHERE id = @call_id",
+            {"call_id": call_id},
+        )
         print(f"[upload] Pipeline echoue : {e}")
         raise HTTPException(status_code=500, detail=f"Erreur pipeline : {str(e)}")
 
@@ -100,7 +112,7 @@ async def upload_call(
         "call_id":      call_id,
         "status":       "evaluated",
         "message":      "Pipeline termine avec succes.",
-        "aligned_text": aligned_text or "",  # ← utilisé par le toggle transcription
+        "aligned_text": aligned_text or "",
     })
 
 
@@ -115,8 +127,8 @@ def get_call_status(call_id: str):
     Valeurs : pending → transcribed → evaluated → failed
     """
     row = fetchone(
-        "SELECT status, transcription_text FROM calls WHERE id = %s",
-        (call_id,),
+        "SELECT status, transcription_text FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` WHERE id = @call_id",
+        {"call_id": call_id},
     )
     if not row:
         raise HTTPException(status_code=404, detail="Appel introuvable.")
@@ -124,5 +136,5 @@ def get_call_status(call_id: str):
     return {
         "call_id":            call_id,
         "status":             row["status"],
-        "transcription_text": row["transcription_text"] or "",  # fallback toggle
+        "transcription_text": row["transcription_text"] or "",
     }

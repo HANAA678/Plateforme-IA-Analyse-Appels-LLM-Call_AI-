@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, date
 from google.cloud import bigquery
 
 # ---------------------------------------------------------------------------
@@ -6,7 +7,8 @@ from google.cloud import bigquery
 # ---------------------------------------------------------------------------
 PROJECT_ID = os.getenv("GCP_PROJECT_ID", "dda-dpl-datalab-sdbx-za")
 DATASET_ID = os.getenv("BQ_DATASET_ID",  "SpeakFlow")
-LOCATION   = os.getenv("BQ_LOCATION",    "EU")
+LOCATION   = os.getenv("BQ_LOCATION",    "europe-west9")
+T = f"{PROJECT_ID}.{DATASET_ID}"
 
 # ---------------------------------------------------------------------------
 # Initialisation du client BigQuery (ADC uniquement)
@@ -87,26 +89,14 @@ def fetchall(query: str, params: dict | None = None) -> list[dict]:
 
 def _bq_type(value) -> str:
     """Infère le type de paramètre BigQuery à partir de la valeur Python."""
-    if isinstance(value, bool):   return "BOOL"
-    if isinstance(value, int):    return "INT64"
-    if isinstance(value, float):  return "FLOAT64"
+    if isinstance(value, bool):     return "BOOL"
+    if isinstance(value, int):      return "INT64"
+    if isinstance(value, float):    return "FLOAT64"
+    if isinstance(value, datetime): return "TIMESTAMP"
+    if isinstance(value, date):     return "DATE"
     return "STRING"
 
 
-# ---------------------------------------------------------------------------
-# Exemples d'utilisation
-# ---------------------------------------------------------------------------
-# from database import fetchall, fetchone, execute, _full_table
-#
-# rows = fetchall(
-#     f"SELECT * FROM {_full_table('Agent')} WHERE team_id = @team_id LIMIT 100",
-#     {"team_id": "team-uuid-123"}
-# )
-#
-# execute(
-#     f"INSERT INTO {_full_table('Call')} (id, agent_id, status) VALUES (@id, @agent_id, @status)",
-#     {"id": "call-uuid", "agent_id": "agent-uuid", "status": "pending"}
-# )
 # ---------------------------------------------------------------------------
 # INSERT TEAMS
 # ---------------------------------------------------------------------------
@@ -114,13 +104,13 @@ def _bq_type(value) -> str:
 def insert_team(team_id: str, name: str):
     execute(
         f"""
-        INSERT INTO {_full_table('Teams')}
+        INSERT INTO {_full_table('teams')}
         (id, name, created_at)
         VALUES (@id, @name, CURRENT_TIMESTAMP())
         """,
         {
-            "id": team_id,
-            "name": name
+            "id":   team_id,
+            "name": name,
         }
     )
 
@@ -129,16 +119,18 @@ def insert_team(team_id: str, name: str):
 # INSERT AGENTS
 # ---------------------------------------------------------------------------
 
-def insert_agent(agent_id: str, team_id: str):
+def insert_agent(agent_id: str, team_id: str, full_name: str, initials: str = None, email: str = None):
     execute(
         f"""
-        INSERT INTO {_full_table('Agent')}
-        (id, team_id, created_at)
-        VALUES (@id, @team_id, CURRENT_TIMESTAMP())
+        INSERT INTO {_full_table('agents')}
+        (id, team_id, full_name, initials, email, created_at)
+        VALUES (@id, @team_id, @full_name, @initials, @email, CURRENT_TIMESTAMP())
         """,
         {
-            "id": agent_id,
-            "team_id": team_id
+            "id":       agent_id,
+            "team_id":  team_id,
+            "full_name": full_name,
+            "initials": initials or "",
+            "email":    email or "",
         }
     )
-insert_team("t1", "Support")

@@ -25,53 +25,61 @@ def run_pipeline(call_id, audio_path, execute, fetchone, fetchall):
     waveform = compute_waveform(audio_path)
 
     execute("""
-        UPDATE calls
-        SET transcription_text = %s,
-            duration_seconds   = %s,
-            language           = %s,
-            waveform_data      = %s,
+        UPDATE `dda-dpl-datalab-sdbx-za.SpeakFlow.calls`
+        SET transcription_text = @text,
+            duration_seconds   = @duration,
+            language           = @language,
+            waveform_data      = PARSE_JSON(@waveform),
             status             = 'transcribed'
-        WHERE id = %s
-    """, (text, int(duration), language, json.dumps(waveform), call_id))
+        WHERE id = @call_id
+    """, {
+        "text":     text,
+        "duration": int(duration),
+        "language": language,
+        "waveform": json.dumps(waveform),
+        "call_id":  call_id,
+    })
 
     print(f"✅ Transcribed — durée={int(duration)}s")
     print("CALL ID =", call_id)
     print("AUDIO PATH =", audio_path)
+
     # ================================================================
     # 2. DIARISATION
     # ================================================================
     diar = diarize_audio(audio_path, total_duration=duration)
 
     execute("""
-        INSERT INTO audio_metrics (
-            call_id,
-            agent_talk_pct,
-            client_talk_pct,
-            silence_pct,
-            silence_max_sec,
-            interruptions_count,
-            silences,
-            diarization
+        MERGE `dda-dpl-datalab-sdbx-za.SpeakFlow.audio_metrics` T
+        USING (SELECT @call_id AS call_id) S
+        ON T.call_id = S.call_id
+        WHEN MATCHED THEN UPDATE SET
+            agent_talk_pct      = @agent_talk_pct,
+            client_talk_pct     = @client_talk_pct,
+            silence_pct         = @silence_pct,
+            silence_max_sec     = @silence_max_sec,
+            interruptions_count = @interruptions_count,
+            silences            = PARSE_JSON(@silences),
+            diarization         = PARSE_JSON(@diarization)
+        WHEN NOT MATCHED THEN INSERT (
+            call_id, agent_talk_pct, client_talk_pct,
+            silence_pct, silence_max_sec, interruptions_count,
+            silences, diarization
+        ) VALUES (
+            @call_id, @agent_talk_pct, @client_talk_pct,
+            @silence_pct, @silence_max_sec, @interruptions_count,
+            PARSE_JSON(@silences), PARSE_JSON(@diarization)
         )
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-        ON CONFLICT (call_id) DO UPDATE SET
-            agent_talk_pct      = EXCLUDED.agent_talk_pct,
-            client_talk_pct     = EXCLUDED.client_talk_pct,
-            silence_pct         = EXCLUDED.silence_pct,
-            silence_max_sec     = EXCLUDED.silence_max_sec,
-            interruptions_count = EXCLUDED.interruptions_count,
-            silences            = EXCLUDED.silences,
-            diarization         = EXCLUDED.diarization
-    """, (
-        call_id,
-        diar["agent_talk_pct"],
-        diar["client_talk_pct"],
-        diar["silence_pct"],
-        diar["silence_max_sec"],
-        diar["interruptions_count"],
-        json.dumps(diar["silences"]),#json.dumps permet de transformer un objet en json car silences est une list et sql ne peut pas stocker ca directement 
-        json.dumps(diar["diarization"]),
-    ))
+    """, {
+        "call_id":            call_id,
+        "agent_talk_pct":     diar["agent_talk_pct"],
+        "client_talk_pct":    diar["client_talk_pct"],
+        "silence_pct":        diar["silence_pct"],
+        "silence_max_sec":    diar["silence_max_sec"],
+        "interruptions_count":diar["interruptions_count"],
+        "silences":           json.dumps(diar["silences"]),
+        "diarization":        json.dumps(diar["diarization"]),
+    })
 
     print("✅ Diarized")
 
@@ -84,10 +92,10 @@ def run_pipeline(call_id, audio_path, execute, fetchone, fetchall):
     )
 
     execute("""
-        UPDATE calls
-        SET transcription_text = %s
-        WHERE id = %s
-    """, (aligned_text, call_id))
+        UPDATE `dda-dpl-datalab-sdbx-za.SpeakFlow.calls`
+        SET transcription_text = @aligned_text
+        WHERE id = @call_id
+    """, {"aligned_text": aligned_text, "call_id": call_id})
 
     print("✅ Aligned")
     print(aligned_text[:400])
@@ -96,26 +104,24 @@ def run_pipeline(call_id, audio_path, execute, fetchone, fetchall):
     # ================================================================
     # 4. ÉVALUATION GEMINI
     # ================================================================
-    #RECUPERER supervisor_notes et focus_points from calls
     call_row = fetchone("""
         SELECT supervisor_notes, focus_points
-        FROM calls
-        WHERE id = %s
-    """, (call_id,))
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls`
+        WHERE id = @call_id
+    """, {"call_id": call_id})
 
     supervisor_notes = (call_row or {}).get("supervisor_notes", "") or ""
     focus_points     = (call_row or {}).get("focus_points",     "") or ""
-#recupere les critères valides  
+
     rows = fetchall("""
         SELECT key, label, max_pts, description, is_active
-        FROM criteria_config
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.criteria_config`
         WHERE is_active = TRUE
         ORDER BY sort_order
     """)
-    #on stocke ds criteria_config les critere valide (criteria_config contient key label max_pts description is_active)
     criteria_config = [dict(row) for row in rows] if rows else []
 
-    if not criteria_config: # cad aucun critere n as ete retourné depuis bd alors criteria_config on utiise des autres criteres par defaut 
+    if not criteria_config:
         criteria_config = [
             {"key": "greeting",   "label": "Accueil & présentation", "max_pts": 20, "description": "Accueil professionnel",          "is_active": True},
             {"key": "listening",  "label": "Écoute active",           "max_pts": 20, "description": "Reformulation et compréhension", "is_active": True},
@@ -136,71 +142,70 @@ def run_pipeline(call_id, audio_path, execute, fetchone, fetchall):
     )
 
     execute("""
-        INSERT INTO evaluations (
-            call_id,
-            score_total,
-            criteria,
-            compliance,
-            sentiment_client,
-            sentiment_agent,
-            summary,
-            strengths,
-            weaknesses,
-            next_action,
-            supervisor_feedback,
-            timeline,
-            keywords,
-            criteria_justifications,
-            evaluated_at
+        MERGE `dda-dpl-datalab-sdbx-za.SpeakFlow.evaluations` T
+        USING (SELECT @call_id AS call_id) S
+        ON T.call_id = S.call_id
+        WHEN MATCHED THEN UPDATE SET
+            score_total             = @score_total,
+            criteria                = PARSE_JSON(@criteria),
+            compliance              = @compliance,
+            sentiment_client        = @sentiment_client,
+            sentiment_agent         = @sentiment_agent,
+            summary                 = @summary,
+            strengths               = @strengths,
+            weaknesses              = @weaknesses,
+            next_action             = @next_action,
+            supervisor_feedback     = @supervisor_feedback,
+            timeline                = PARSE_JSON(@timeline),
+            keywords                = PARSE_JSON(@keywords),
+            criteria_justifications = PARSE_JSON(@criteria_justifications),
+            evaluated_at            = CURRENT_TIMESTAMP()
+        WHEN NOT MATCHED THEN INSERT (
+            call_id, score_total, criteria, compliance,
+            sentiment_client, sentiment_agent, summary,
+            strengths, weaknesses, next_action, supervisor_feedback,
+            timeline, keywords, criteria_justifications, evaluated_at
+        ) VALUES (
+            @call_id, @score_total, PARSE_JSON(@criteria), @compliance,
+            @sentiment_client, @sentiment_agent, @summary,
+            @strengths, @weaknesses, @next_action, @supervisor_feedback,
+            PARSE_JSON(@timeline), PARSE_JSON(@keywords), PARSE_JSON(@criteria_justifications), CURRENT_TIMESTAMP()
         )
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, NOW())
-        ON CONFLICT (call_id) DO UPDATE SET
-            score_total             = EXCLUDED.score_total,
-            criteria                = EXCLUDED.criteria,
-            compliance              = EXCLUDED.compliance,
-            sentiment_client        = EXCLUDED.sentiment_client,
-            sentiment_agent         = EXCLUDED.sentiment_agent,
-            summary                 = EXCLUDED.summary,
-            strengths               = EXCLUDED.strengths,
-            weaknesses              = EXCLUDED.weaknesses,
-            next_action             = EXCLUDED.next_action,
-            supervisor_feedback     = EXCLUDED.supervisor_feedback,
-            timeline                = EXCLUDED.timeline,
-            keywords                = EXCLUDED.keywords,
-            criteria_justifications = EXCLUDED.criteria_justifications,
-            evaluated_at            = NOW()
-    """, (
-        call_id,
-        evaluation["score_total"],
-        json.dumps(evaluation["criteria"]),
-        evaluation["compliance"],
-        evaluation["sentiment_client"],
-        evaluation["sentiment_agent"],
-        evaluation["summary"],
-        evaluation["strengths"],
-        evaluation["weaknesses"],
-        evaluation["next_action"],
-        evaluation["supervisor_feedback"],
-        json.dumps(evaluation["timeline"]),
-        json.dumps(evaluation["keywords"]),
-        json.dumps(evaluation["criteria_justifications"]),
-    ))
+    """, {
+        "call_id":                call_id,
+        "score_total":            evaluation["score_total"],
+        "criteria":               json.dumps(evaluation["criteria"]),
+        "compliance":             evaluation["compliance"],
+        "sentiment_client":       evaluation["sentiment_client"],
+        "sentiment_agent":        evaluation["sentiment_agent"],
+        "summary":                evaluation["summary"],
+        "strengths":              evaluation["strengths"],
+        "weaknesses":             evaluation["weaknesses"],
+        "next_action":            evaluation["next_action"],
+        "supervisor_feedback":    evaluation["supervisor_feedback"],
+        "timeline":               json.dumps(evaluation["timeline"]),
+        "keywords":               json.dumps(evaluation["keywords"]),
+        "criteria_justifications":json.dumps(evaluation["criteria_justifications"]),
+    })
 
     execute("""
-        UPDATE calls SET status = 'evaluated' WHERE id = %s
-    """, (call_id,))
+        UPDATE `dda-dpl-datalab-sdbx-za.SpeakFlow.calls`
+        SET status = 'evaluated'
+        WHERE id = @call_id
+    """, {"call_id": call_id})
 
     print(f"✅ Evaluated — score={evaluation['score_total']}, compliance={evaluation['compliance']}")
 
-
-# ================================================================
-# alerts
-# ================================================================
-
-
-    call_row_agent = fetchone("SELECT agent_id FROM calls WHERE id = %s", (call_id,))
+    # ================================================================
+    # ALERTS
+    # ================================================================
+    call_row_agent = fetchone(
+        "SELECT agent_id FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` WHERE id = @call_id",
+        {"call_id": call_id},
+    )
     agent_id = (call_row_agent or {}).get("agent_id", "")
     generate_alerts(call_id=call_id, agent_id=agent_id, evaluation=evaluation, diar=diar)
+
     # ================================================================
     # 5. REFRESH STATS AGENT
     # ================================================================
@@ -210,34 +215,38 @@ def run_pipeline(call_id, audio_path, execute, fetchone, fetchall):
     return aligned_text
 
 
-
 # ================================================================
 # Helper privé
 # ================================================================
 
 def _refresh_agent_stats(call_id, fetchone, execute):
-    call_row = fetchone("SELECT agent_id FROM calls WHERE id = %s", (call_id,))
+    call_row = fetchone(
+        "SELECT agent_id FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` WHERE id = @call_id",
+        {"call_id": call_id},
+    )
     agent_id = (call_row or {}).get("agent_id")
     if not agent_id:
         return
 
     stats = fetchone("""
         SELECT
-            COUNT(*)::int                         AS total_calls,
-            ROUND(AVG(e.score_total)::numeric, 1) AS avg_score
-        FROM calls c
-        JOIN evaluations e ON e.call_id = c.id
-        WHERE c.agent_id = %s
-          AND c.called_at >= NOW() - INTERVAL '30 days'
+            COUNT(*)                     AS total_calls,
+            ROUND(AVG(e.score_total), 1) AS avg_score
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` c
+        JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.evaluations` e ON e.call_id = c.id
+        WHERE c.agent_id = @agent_id
+          AND c.called_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
           AND c.status = 'evaluated'
-    """, (agent_id,))
+    """, {"agent_id": agent_id})
 
     if stats:
         execute("""
-            UPDATE agents SET avg_score = %s, total_calls = %s WHERE id = %s
-        """, (stats["avg_score"] or 0, stats["total_calls"] or 0, agent_id))
+            UPDATE `dda-dpl-datalab-sdbx-za.SpeakFlow.agents`
+            SET avg_score = @avg_score, total_calls = @total_calls
+            WHERE id = @agent_id
+        """, {
+            "avg_score":   stats["avg_score"]   or 0,
+            "total_calls": stats["total_calls"]  or 0,
+            "agent_id":    agent_id,
+        })
         print(f"✅ Stats agent — avg={stats['avg_score']}, calls={stats['total_calls']}")
-
-
-
-

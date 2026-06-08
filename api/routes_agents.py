@@ -15,7 +15,7 @@ def get_teams():
     Retourne la liste de toutes les équipes.
     Utilisé par : page Upload (filtre agent), page Agents (filtre équipe)
     """
-    rows = fetchall("SELECT id, name, supervisor_name FROM teams ORDER BY name")
+    rows = fetchall("SELECT id, name, supervisor_name FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.teams` ORDER BY name")
     return [dict(r) for r in rows] if rows else []
 
 
@@ -25,16 +25,16 @@ def create_team(body: dict):
     Crée une nouvelle équipe.
     Body : { "name": "Équipe A", "supervisor_name": "Hassan" }
     """
-    name             = body.get("name", "").strip()
-    supervisor_name  = body.get("supervisor_name", "").strip()
+    name            = body.get("name", "").strip()
+    supervisor_name = body.get("supervisor_name", "").strip()
 
     if not name:
         raise HTTPException(status_code=400, detail="Le champ 'name' est obligatoire.")
 
     team_id = str(uuid.uuid4())
     execute(
-        "INSERT INTO teams (id, name, supervisor_name) VALUES (%s, %s, %s)",
-        (team_id, name, supervisor_name or None),
+        "INSERT INTO `dda-dpl-datalab-sdbx-za.SpeakFlow.teams` (id, name, supervisor_name) VALUES (@team_id, @name, @supervisor_name)",
+        {"team_id": team_id, "name": name, "supervisor_name": supervisor_name or None},
     )
     return {"id": team_id, "name": name, "supervisor_name": supervisor_name}
 
@@ -61,12 +61,12 @@ def get_agents(team_id: str = None):
                 a.avg_score,
                 a.total_calls,
                 t.name AS team_name
-            FROM agents a
-            LEFT JOIN teams t ON t.id = a.team_id
-            WHERE a.team_id = %s
-            ORDER BY a.avg_score DESC NULLS LAST
+            FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.agents` a
+            LEFT JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.teams` t ON t.id = a.team_id
+            WHERE a.team_id = @team_id
+            ORDER BY a.avg_score DESC
             """,
-            (team_id,),
+            {"team_id": team_id},
         )
     else:
         rows = fetchall(
@@ -79,9 +79,9 @@ def get_agents(team_id: str = None):
                 a.avg_score,
                 a.total_calls,
                 t.name AS team_name
-            FROM agents a
-            LEFT JOIN teams t ON t.id = a.team_id
-            ORDER BY a.avg_score DESC NULLS LAST
+            FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.agents` a
+            LEFT JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.teams` t ON t.id = a.team_id
+            ORDER BY a.avg_score DESC
             """
         )
     return [dict(r) for r in rows] if rows else []
@@ -103,11 +103,11 @@ def get_agent(agent_id: str):
             a.avg_score,
             a.total_calls,
             t.name AS team_name
-        FROM agents a
-        LEFT JOIN teams t ON t.id = a.team_id
-        WHERE a.id = %s
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.agents` a
+        LEFT JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.teams` t ON t.id = a.team_id
+        WHERE a.id = @agent_id
         """,
-        (agent_id,),
+        {"agent_id": agent_id},
     )
 
     if not agent:
@@ -117,17 +117,17 @@ def get_agent(agent_id: str):
     history_rows = fetchall(
         """
         SELECT
-            DATE_TRUNC('week', c.called_at)       AS week,
-            ROUND(AVG(e.score_total)::numeric, 1) AS avg_score
-        FROM calls c
-        JOIN evaluations e ON e.call_id = c.id
-        WHERE c.agent_id = %s
-          AND c.called_at >= NOW() - INTERVAL '12 weeks'
+            DATE_TRUNC(c.called_at, WEEK)  AS week,
+            ROUND(AVG(e.score_total), 1)   AS avg_score
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` c
+        JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.evaluations` e ON e.call_id = c.id
+        WHERE c.agent_id = @agent_id
+          AND c.called_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 12 WEEK)
           AND c.status = 'evaluated'
-        GROUP BY DATE_TRUNC('week', c.called_at)
+        GROUP BY DATE_TRUNC(c.called_at, WEEK)
         ORDER BY week ASC
         """,
-        (agent_id,),
+        {"agent_id": agent_id},
     )
 
     score_history = [float(r["avg_score"]) for r in history_rows] if history_rows else []
@@ -155,17 +155,26 @@ def create_agent(body: dict):
 
     # Vérifier que team_id existe si fourni
     if team_id:
-        team = fetchone("SELECT id FROM teams WHERE id = %s", (team_id,))
+        team = fetchone(
+            "SELECT id FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.teams` WHERE id = @team_id",
+            {"team_id": team_id},
+        )
         if not team:
             raise HTTPException(status_code=400, detail="team_id invalide.")
 
     agent_id = str(uuid.uuid4())
     execute(
         """
-        INSERT INTO agents (id, team_id, full_name, initials, email, avg_score, total_calls)
-        VALUES (%s, %s, %s, %s, %s, 0, 0)
+        INSERT INTO `dda-dpl-datalab-sdbx-za.SpeakFlow.agents` (id, team_id, full_name, initials, email, avg_score, total_calls)
+        VALUES (@agent_id, @team_id, @full_name, @initials, @email, 0, 0)
         """,
-        (agent_id, team_id, full_name, initials, email or None),
+        {
+            "agent_id":  agent_id,
+            "team_id":   team_id,
+            "full_name": full_name,
+            "initials":  initials,
+            "email":     email or None,
+        },
     )
 
     return {

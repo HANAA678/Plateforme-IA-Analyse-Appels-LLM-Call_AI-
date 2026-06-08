@@ -22,20 +22,19 @@ def get_alerts(
     # Stats globales
     stats_row = fetchone("""
         SELECT
-            COUNT(CASE WHEN severity = 'critical' AND resolved = false THEN 1 END)::int AS critical,
-            COUNT(CASE WHEN severity = 'medium'   AND resolved = false THEN 1 END)::int AS medium,
-            COUNT(CASE WHEN resolved = true
-                        AND resolved_at >= NOW() - INTERVAL '1 day' THEN 1 END)::int    AS resolved_today
-        FROM alerts
+            COUNTIF(severity = 'critical' AND resolved = false) AS critical,
+            COUNTIF(severity = 'medium'   AND resolved = false) AS medium,
+            COUNTIF(resolved = true AND resolved_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)) AS resolved_today
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.alerts`
     """)
 
     # Filtres dynamiques
     filters = []
-    params  = []
+    params  = {}
 
     if severity:
-        filters.append("a.severity = %s")
-        params.append(severity)
+        filters.append("a.severity = @severity")
+        params["severity"] = severity
 
     if resolved == "false":
         filters.append("a.resolved = false")
@@ -57,8 +56,8 @@ def get_alerts(
             a.call_id,
             ag.full_name  AS agent_name,
             ag.initials   AS agent_initials
-        FROM alerts a
-        JOIN agents ag ON ag.id = a.agent_id
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.alerts` a
+        JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.agents` ag ON ag.id = a.agent_id
         {where_clause}
         ORDER BY
             a.resolved ASC,
@@ -102,7 +101,10 @@ def resolve_alert(alert_id: str, body: dict):
     Body : { "resolved_by": "Nom du superviseur" }
     Utilisé par : page Alertes (bouton "Traiter")
     """
-    alert = fetchone("SELECT id, resolved FROM alerts WHERE id = %s", (alert_id,))
+    alert = fetchone(
+        "SELECT id, resolved FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.alerts` WHERE id = @alert_id",
+        {"alert_id": alert_id},
+    )
     if not alert:
         raise HTTPException(status_code=404, detail="Alerte introuvable.")
     if alert["resolved"]:
@@ -112,12 +114,12 @@ def resolve_alert(alert_id: str, body: dict):
     now         = datetime.utcnow()
 
     execute("""
-        UPDATE alerts
+        UPDATE `dda-dpl-datalab-sdbx-za.SpeakFlow.alerts`
         SET resolved    = true,
-            resolved_by = %s,
-            resolved_at = %s
-        WHERE id = %s
-    """, (resolved_by, now, alert_id))
+            resolved_by = @resolved_by,
+            resolved_at = @resolved_at
+        WHERE id = @alert_id
+    """, {"resolved_by": resolved_by, "resolved_at": now, "alert_id": alert_id})
 
     return {
         "id":          alert_id,

@@ -19,22 +19,22 @@ def get_calls(
     search:    str = Query(None),
     page:      int = Query(1, ge=1),
 ):
-    interval_map = {"today": "1 day", "week": "7 days", "month": "30 days"}
-    interval = interval_map.get(period, "30 days")
+    interval_map = {"today": 1, "week": 7, "month": 30}
+    interval_days = interval_map.get(period, 30)
 
-    filters = ["c.called_at >= NOW() - INTERVAL %s", "c.status = 'evaluated'"]
-    params  = [interval]
+    filters = [f"c.called_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {interval_days} DAY)", "c.status = 'evaluated'"]
+    params  = {}
 
     if agent_id:
-        filters.append("c.agent_id = %s");  params.append(agent_id)
+        filters.append("c.agent_id = @agent_id");  params["agent_id"] = agent_id
     if team_id:
-        filters.append("a.team_id = %s");   params.append(team_id)
+        filters.append("a.team_id = @team_id");    params["team_id"] = team_id
     if call_type:
-        filters.append("c.call_type = %s"); params.append(call_type)
+        filters.append("c.call_type = @call_type"); params["call_type"] = call_type
     if priority:
-        filters.append("c.priority = %s");  params.append(priority)
+        filters.append("c.priority = @priority");  params["priority"] = priority
     if search:
-        filters.append("a.full_name ILIKE %s"); params.append(f"%{search}%")
+        filters.append("LOWER(a.full_name) LIKE LOWER(@search)"); params["search"] = f"%{search}%"
     if score == "high":
         filters.append("e.score_total >= 70")
     elif score == "medium":
@@ -45,12 +45,12 @@ def get_calls(
     where_clause = " AND ".join(filters)
 
     count_row = fetchone(f"""
-        SELECT COUNT(*)::int AS total
-        FROM calls c
-        JOIN evaluations e ON e.call_id = c.id
-        JOIN agents a      ON a.id = c.agent_id
+        SELECT COUNT(*) AS total
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` c
+        JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.evaluations` e ON e.call_id = c.id
+        JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.agents` a      ON a.id = c.agent_id
         WHERE {where_clause}
-    """, params)
+    """, params if params else None)
     total = count_row["total"] if count_row else 0
 
     limit  = 25
@@ -72,14 +72,14 @@ def get_calls(
             e.compliance,
             e.sentiment_client,
             e.sentiment_agent
-        FROM calls c
-        JOIN evaluations e ON e.call_id = c.id
-        JOIN agents a      ON a.id = c.agent_id
-        LEFT JOIN teams t  ON t.id = a.team_id
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` c
+        JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.evaluations` e ON e.call_id = c.id
+        JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.agents` a      ON a.id = c.agent_id
+        LEFT JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.teams` t  ON t.id = a.team_id
         WHERE {where_clause}
         ORDER BY c.called_at DESC
-        LIMIT %s OFFSET %s
-    """, params + [limit, offset])
+        LIMIT {limit} OFFSET {offset}
+    """, params if params else None)
 
     return {
         "total":       total,
@@ -130,11 +130,11 @@ def get_call_report(call_id: str):
             a.initials      AS agent_initials,
             a.email         AS agent_email,
             t.name          AS team_name
-        FROM calls c
-        JOIN agents a      ON a.id = c.agent_id
-        LEFT JOIN teams t  ON t.id = a.team_id
-        WHERE c.id = %s
-    """, (call_id,))
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` c
+        JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.agents` a      ON a.id = c.agent_id
+        LEFT JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.teams` t  ON t.id = a.team_id
+        WHERE c.id = @call_id
+    """, {"call_id": call_id})
 
     if not call:
         raise HTTPException(status_code=404, detail="Appel introuvable.")
@@ -157,11 +157,10 @@ def get_call_report(call_id: str):
             timeline,
             keywords,
             evaluated_at
-        FROM evaluations
-        WHERE call_id = %s
-    """, (call_id,))
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.evaluations`
+        WHERE call_id = @call_id
+    """, {"call_id": call_id})
 
-    # ── Audio : tous les champs ───────────────────────────────────
     audio = fetchone("""
         SELECT
             agent_talk_pct,
@@ -176,13 +175,13 @@ def get_call_report(call_id: str):
             noise_level,
             emotions_agent,
             emotions_client
-        FROM audio_metrics
-        WHERE call_id = %s
-    """, (call_id,))
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.audio_metrics`
+        WHERE call_id = @call_id
+    """, {"call_id": call_id})
 
     criteria_config = fetchall("""
         SELECT key, label, max_pts, is_active
-        FROM criteria_config
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.criteria_config`
         WHERE is_active = TRUE
         ORDER BY sort_order
     """)
@@ -250,11 +249,13 @@ def get_call_report(call_id: str):
 
 @router.get("/api/calls/{call_id}/audio")
 def get_call_audio(call_id: str):
-    call = fetchone("SELECT waveform_data FROM calls WHERE id = %s", (call_id,))
+    call = fetchone(
+        "SELECT waveform_data FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` WHERE id = @call_id",
+        {"call_id": call_id},
+    )
     if not call:
         raise HTTPException(status_code=404, detail="Appel introuvable.")
 
-    # ── Tous les champs audio ─────────────────────────────────────
     audio = fetchone("""
         SELECT
             agent_talk_pct,
@@ -269,9 +270,9 @@ def get_call_audio(call_id: str):
             noise_level,
             emotions_agent,
             emotions_client
-        FROM audio_metrics
-        WHERE call_id = %s
-    """, (call_id,))
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.audio_metrics`
+        WHERE call_id = @call_id
+    """, {"call_id": call_id})
 
     if not audio:
         raise HTTPException(status_code=404, detail="Métriques audio introuvables.")
@@ -299,7 +300,10 @@ def get_call_audio(call_id: str):
 
 @router.get("/api/calls/{call_id}/audio-url")
 def get_audio_url(call_id: str):
-    row = fetchone("SELECT audio_url FROM calls WHERE id = %s", (call_id,))
+    row = fetchone(
+        "SELECT audio_url FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` WHERE id = @call_id",
+        {"call_id": call_id},
+    )
     if not row:
         raise HTTPException(status_code=404, detail="Appel introuvable.")
     return {"call_id": call_id, "url": row["audio_url"]}

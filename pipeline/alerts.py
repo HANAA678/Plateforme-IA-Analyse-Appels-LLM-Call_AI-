@@ -28,17 +28,17 @@ def generate_alerts(
     """
     if thresholds is None:
         thresholds = {
-            "score_critical":   40,   # score < 40  → score_drop
-            "score_compliance": 70,   # score < 70 + non-conforme → compliance
-            "silence_max_sec":  60,   # silence max >= 60s → long_silence
+            "score_critical":   40,
+            "score_compliance": 70,
+            "silence_max_sec":  60,
         }
 
     alerts_inserted = []
 
-    score      = evaluation.get("score_total", 100)
-    compliance = evaluation.get("compliance", "conforme")
-    keywords   = [k.lower() for k in evaluation.get("keywords", [])]
-    sentiment  = evaluation.get("sentiment_client", "neutre")
+    score       = evaluation.get("score_total", 100)
+    compliance  = evaluation.get("compliance", "conforme")
+    keywords    = [k.lower() for k in evaluation.get("keywords", [])]
+    sentiment   = evaluation.get("sentiment_client", "neutre")
     silence_max = diar.get("silence_max_sec", 0)
 
     # ── 1. Score trop bas ─────────────────────────────────────────
@@ -112,10 +112,19 @@ def _insert_alert(
 
     execute(
         """
-        INSERT INTO alerts (id, call_id, agent_id, type, severity, message, resolved, triggered_at)
-        VALUES (%s, %s, %s, %s, %s, %s, false, %s)
+        INSERT INTO `dda-dpl-datalab-sdbx-za.SpeakFlow.alerts`
+        (id, call_id, agent_id, type, severity, message, resolved, triggered_at)
+        VALUES (@alert_id, @call_id, @agent_id, @type, @severity, @message, false, @triggered_at)
         """,
-        (alert_id, call_id, agent_id, alert_type, severity, message, now),
+        {
+            "alert_id":    alert_id,
+            "call_id":     call_id,
+            "agent_id":    agent_id,
+            "type":        alert_type,
+            "severity":    severity,
+            "message":     message,
+            "triggered_at": now,
+        },
     )
 
     print(f"[alerts] [{severity.upper()}] {alert_type} — {message}")

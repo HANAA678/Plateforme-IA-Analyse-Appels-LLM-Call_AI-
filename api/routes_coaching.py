@@ -28,10 +28,10 @@ def get_call_coaching(call_id: str):
     """
     call = fetchone("""
         SELECT c.id, a.full_name, a.initials, a.id AS agent_id
-        FROM calls c
-        JOIN agents a ON a.id = c.agent_id
-        WHERE c.id = %s
-    """, (call_id,))
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` c
+        JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.agents` a ON a.id = c.agent_id
+        WHERE c.id = @call_id
+    """, {"call_id": call_id})
 
     if not call:
         raise HTTPException(status_code=404, detail="Appel introuvable.")
@@ -46,11 +46,11 @@ def get_call_coaching(call_id: str):
             calls_analyzed,
             generated_at,
             example_call_id
-        FROM coaching_notes
-        WHERE agent_id = %s
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.coaching_notes`
+        WHERE agent_id = @agent_id
         ORDER BY generated_at DESC
         LIMIT 1
-    """, (str(call["agent_id"]),))
+    """, {"agent_id": str(call["agent_id"])})
 
     if not note:
         raise HTTPException(status_code=404, detail="Fiche coaching non encore générée pour cet appel.")
@@ -107,12 +107,12 @@ def generate_call_coaching(call_id: str):
             am.noise_level,
             am.emotions_agent,
             am.emotions_client
-        FROM calls c
-        JOIN agents a         ON a.id      = c.agent_id
-        LEFT JOIN evaluations e  ON e.call_id = c.id
-        LEFT JOIN audio_metrics am ON am.call_id = c.id
-        WHERE c.id = %s AND c.status = 'evaluated'
-    """, (call_id,))
+        FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.calls` c
+        JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.agents` a          ON a.id      = c.agent_id
+        LEFT JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.evaluations` e   ON e.call_id = c.id
+        LEFT JOIN `dda-dpl-datalab-sdbx-za.SpeakFlow.audio_metrics` am ON am.call_id = c.id
+        WHERE c.id = @call_id AND c.status = 'evaluated'
+    """, {"call_id": call_id})
 
     if not call:
         raise HTTPException(status_code=404, detail="Appel introuvable ou non encore évalué.")
@@ -220,59 +220,66 @@ Réponds UNIQUEMENT avec ce JSON (sans markdown, sans texte avant ou après) :
     agent_id = str(call["agent_id"])
 
     existing = fetchone("""
-        SELECT id FROM coaching_notes
-        WHERE agent_id = %s AND example_call_id = %s
-    """, (agent_id, call_id))
+        SELECT id FROM `dda-dpl-datalab-sdbx-za.SpeakFlow.coaching_notes`
+        WHERE agent_id = @agent_id AND example_call_id = @call_id
+    """, {"agent_id": agent_id, "call_id": call_id})
 
     if existing:
         execute("""
-            UPDATE coaching_notes SET
-                weak_points             = %s,
-                vocal_issues            = %s,
-                recommended_training    = %s,
-                performance_summary     = %s,
-                avg_score_at_generation = %s,
+            UPDATE `dda-dpl-datalab-sdbx-za.SpeakFlow.coaching_notes`
+            SET
+                weak_points             = @weak_points,
+                vocal_issues            = @vocal_issues,
+                recommended_training    = @recommended_training,
+                performance_summary     = @performance_summary,
+                avg_score_at_generation = @avg_score,
                 calls_analyzed          = 1,
-                generated_at            = %s
-            WHERE agent_id = %s AND example_call_id = %s
-        """, (
-            coaching_data.get("weak_points"),
-            coaching_data.get("vocal_issues"),
-            coaching_data.get("recommended_training"),
-            coaching_data.get("performance_summary"),
-            float(score),
-            now,
-            agent_id, call_id,
-        ))
+                generated_at            = @generated_at
+            WHERE agent_id = @agent_id AND example_call_id = @call_id
+        """, {
+            "weak_points":          coaching_data.get("weak_points"),
+            "vocal_issues":         coaching_data.get("vocal_issues"),
+            "recommended_training": coaching_data.get("recommended_training"),
+            "performance_summary":  coaching_data.get("performance_summary"),
+            "avg_score":            float(score),
+            "generated_at":         now,
+            "agent_id":             agent_id,
+            "call_id":              call_id,
+        })
     else:
         execute("""
-            INSERT INTO coaching_notes (
+            INSERT INTO `dda-dpl-datalab-sdbx-za.SpeakFlow.coaching_notes` (
                 id, agent_id,
                 weak_points, vocal_issues, recommended_training,
                 example_call_id, performance_summary,
                 avg_score_at_generation, calls_analyzed, generated_at
-            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,1,%s)
-        """, (
-            str(uuid.uuid4()),
-            agent_id,
-            coaching_data.get("weak_points"),
-            coaching_data.get("vocal_issues"),
-            coaching_data.get("recommended_training"),
-            call_id,
-            coaching_data.get("performance_summary"),
-            float(score),
-            now,
-        ))
+            ) VALUES (
+                @id, @agent_id,
+                @weak_points, @vocal_issues, @recommended_training,
+                @call_id, @performance_summary,
+                @avg_score, 1, @generated_at
+            )
+        """, {
+            "id":                   str(uuid.uuid4()),
+            "agent_id":             agent_id,
+            "weak_points":          coaching_data.get("weak_points"),
+            "vocal_issues":         coaching_data.get("vocal_issues"),
+            "recommended_training": coaching_data.get("recommended_training"),
+            "call_id":              call_id,
+            "performance_summary":  coaching_data.get("performance_summary"),
+            "avg_score":            float(score),
+            "generated_at":         now,
+        })
 
     print(f"[coaching] Fiche sauvegardée OK")
 
     return {
-        "call_id":             call_id,
-        "agent_name":          call["full_name"],
-        "agent_initials":      call["initials"],
-        "generated_at":        now.isoformat(),
+        "call_id":                 call_id,
+        "agent_name":              call["full_name"],
+        "agent_initials":          call["initials"],
+        "generated_at":            now.isoformat(),
         "avg_score_at_generation": float(score),
-        "calls_analyzed":      1,
+        "calls_analyzed":          1,
         **coaching_data,
     }
 
